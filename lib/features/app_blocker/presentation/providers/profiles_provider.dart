@@ -132,7 +132,10 @@ class ProfilesNotifier extends AsyncNotifier<List<BlockerProfile>> {
 
     final list = state.requireValue.map((p) {
       if (p.id != id) return p;
-      return activatedProfile.copyWith(isActive: true);
+      return activatedProfile.copyWith(
+        isActive: true,
+        shieldActivatedAt: DateTime.now().toIso8601String(),
+      );
     }).toList();
     state = AsyncData(list);
     await _persist(list);
@@ -143,7 +146,18 @@ class ProfilesNotifier extends AsyncNotifier<List<BlockerProfile>> {
     await _ds.stopMonitoring();
     final list = state.requireValue.map((p) {
       if (p.id != id) return p;
-      return p.copyWith(isActive: false);
+      // Accumulate saved minutes from this session.
+      int sessionMinutes = 0;
+      if (p.shieldActivatedAt != null) {
+        final activated = DateTime.tryParse(p.shieldActivatedAt!);
+        if (activated != null) {
+          sessionMinutes = DateTime.now().difference(activated).inMinutes;
+        }
+      }
+      return p.copyWith(
+        isActive: false,
+        totalSavedMinutes: p.totalSavedMinutes + sessionMinutes,
+      );
     }).toList();
     state = AsyncData(list);
     await _persist(list);

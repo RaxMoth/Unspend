@@ -116,6 +116,13 @@ class BlockerProfile {
   /// Number of apps selected (for display only).
   final int appCount;
 
+  // ── Stats tracking ───────────────────────────────────────────────────
+  /// When the shield was last activated (ISO-8601). Null if never activated.
+  final String? shieldActivatedAt;
+
+  /// Cumulative minutes saved across all sessions.
+  final int totalSavedMinutes;
+
   const BlockerProfile({
     required this.id,
     required this.name,
@@ -133,6 +140,8 @@ class BlockerProfile {
     this.tasks = const [],
     this.hasAppsSelected = false,
     this.appCount = 0,
+    this.shieldActivatedAt,
+    this.totalSavedMinutes = 0,
   });
 
   Color get color => Color(colorValue);
@@ -195,6 +204,8 @@ class BlockerProfile {
     List<BlockerTask>? tasks,
     bool? hasAppsSelected,
     int? appCount,
+    String? shieldActivatedAt,
+    int? totalSavedMinutes,
   }) {
     return BlockerProfile(
       id: id ?? this.id,
@@ -213,6 +224,8 @@ class BlockerProfile {
       tasks: tasks ?? this.tasks,
       hasAppsSelected: hasAppsSelected ?? this.hasAppsSelected,
       appCount: appCount ?? this.appCount,
+      shieldActivatedAt: shieldActivatedAt ?? this.shieldActivatedAt,
+      totalSavedMinutes: totalSavedMinutes ?? this.totalSavedMinutes,
     );
   }
 
@@ -233,6 +246,8 @@ class BlockerProfile {
         'tasks': tasks.map((t) => t.toJson()).toList(),
         'hasAppsSelected': hasAppsSelected,
         'appCount': appCount,
+        'shieldActivatedAt': shieldActivatedAt,
+        'totalSavedMinutes': totalSavedMinutes,
       };
 
   factory BlockerProfile.fromJson(Map<String, dynamic> j) => BlockerProfile(
@@ -255,5 +270,7 @@ class BlockerProfile {
             [],
         hasAppsSelected: j['hasAppsSelected'] as bool? ?? false,
         appCount: j['appCount'] as int? ?? 0,
+        shieldActivatedAt: j['shieldActivatedAt'] as String?,
+        totalSavedMinutes: j['totalSavedMinutes'] as int? ?? 0,
       );
 }

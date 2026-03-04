@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/profiles_provider.dart';
 import '../../domain/entities/blocker_profile.dart';
+import '../../domain/entities/usage_stats.dart';
 
 // ── Design tokens (shared across all blocker screens) ──────────────────────
 const kBg = Color(0xFF0D0D0D);
@@ -225,6 +226,10 @@ class _DashboardBody extends ConsumerWidget {
                   totalProfiles: profiles.length,
                   activeCount: activeCount,
                 ),
+                const SizedBox(height: 14),
+
+                // ── Stats row ──────────────────────────────────────────
+                _StatsRow(profiles: profiles),
                 const SizedBox(height: 20),
 
                 // ── Section title ──────────────────────────────────────
@@ -497,6 +502,124 @@ class _SummaryCard extends StatelessWidget {
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Stats Row (dashboard) ──────────────────────────────────────────────────
+class _StatsRow extends StatelessWidget {
+  final List<BlockerProfile> profiles;
+  const _StatsRow({required this.profiles});
+
+  String _fmtDuration(int totalMinutes) {
+    if (totalMinutes < 60) return '${totalMinutes}m';
+    final h = totalMinutes ~/ 60;
+    final m = totalMinutes % 60;
+    return m > 0 ? '${h}h ${m}m' : '${h}h';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Total saved minutes across all profiles (persisted + current session).
+    int totalSaved = 0;
+    int todayUsage = 0;
+    int weekAvg = 0;
+
+    for (final p in profiles) {
+      totalSaved += p.totalSavedMinutes;
+      // Add live session time for currently active profiles.
+      if (p.isActive && p.shieldActivatedAt != null) {
+        final activated = DateTime.tryParse(p.shieldActivatedAt!);
+        if (activated != null) {
+          totalSaved += DateTime.now().difference(activated).inMinutes;
+        }
+      }
+      // Mock usage stats.
+      if (p.hasAppsSelected) {
+        final stats = MockUsageGenerator.generate(
+          profileId: p.id,
+          appCount: p.appCount,
+          isActive: p.isActive,
+          shieldActivatedAt: p.shieldActivatedAt,
+        );
+        todayUsage += stats.todayTotalMinutes;
+        weekAvg += stats.weekAvgMinutes;
+      }
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: _StatTile(
+            icon: Icons.timer_off_rounded,
+            label: 'Time Saved',
+            value: _fmtDuration(totalSaved),
+            color: Colors.green,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatTile(
+            icon: Icons.phone_android_rounded,
+            label: 'Today',
+            value: _fmtDuration(todayUsage),
+            color: kAccent,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatTile(
+            icon: Icons.show_chart_rounded,
+            label: 'Daily Avg',
+            value: _fmtDuration(weekAvg),
+            color: const Color(0xFF1E88E5),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  const _StatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorder),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              color: kTextPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(color: kTextSecondary, fontSize: 11),
+          ),
         ],
       ),
     );
@@ -928,6 +1051,14 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // ── Usage Stats ─────────────────────────────────────
+                    if (p.hasAppsSelected) ...[
+                      _SectionLabel('Usage Stats'),
+                      const SizedBox(height: 8),
+                      _ProfileUsageSection(profile: p, accent: accent),
+                      const SizedBox(height: 24),
+                    ],
 
                     // ── Block Rules (combinable) ────────────────────────
                     _SectionLabel('Block Rules'),
@@ -2048,6 +2179,312 @@ class _TaskListSectionState extends ConsumerState<_TaskListSection> {
         ],
       ),
       ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Profile Usage Stats Section ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _ProfileUsageSection extends StatelessWidget {
+  final BlockerProfile profile;
+  final Color accent;
+  const _ProfileUsageSection({required this.profile, required this.accent});
+
+  String _fmtMin(int m) {
+    if (m < 60) return '${m}m';
+    final h = m ~/ 60;
+    final r = m % 60;
+    return r > 0 ? '${h}h ${r}m' : '${h}h';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = MockUsageGenerator.generate(
+      profileId: profile.id,
+      appCount: profile.appCount,
+      isActive: profile.isActive,
+      shieldActivatedAt: profile.shieldActivatedAt,
+    );
+
+    // Time saved for this profile.
+    int savedMinutes = profile.totalSavedMinutes;
+    if (profile.isActive && profile.shieldActivatedAt != null) {
+      final activated = DateTime.tryParse(profile.shieldActivatedAt!);
+      if (activated != null) {
+        savedMinutes += DateTime.now().difference(activated).inMinutes;
+      }
+    }
+
+    return _SectionCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Summary stat tiles ──────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniStat(
+                    icon: Icons.phone_android_rounded,
+                    label: 'Today',
+                    value: _fmtMin(stats.todayTotalMinutes),
+                    color: accent,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MiniStat(
+                    icon: Icons.show_chart_rounded,
+                    label: 'Daily Avg',
+                    value: _fmtMin(stats.weekAvgMinutes),
+                    color: const Color(0xFF1E88E5),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MiniStat(
+                    icon: Icons.timer_off_rounded,
+                    label: 'Saved',
+                    value: _fmtMin(savedMinutes),
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Weekly bar chart ────────────────────────────────────────
+            const Text(
+              'Last 7 Days',
+              style: TextStyle(
+                color: kTextSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 80,
+              child: _WeekChart(
+                history: stats.weekHistory,
+                accent: accent,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Per-app breakdown ───────────────────────────────────────
+            Row(
+              children: [
+                const Text(
+                  'App Breakdown',
+                  style: TextStyle(
+                    color: kTextSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'Today',
+                  style: TextStyle(
+                    color: kTextSecondary.withValues(alpha: 0.6),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...stats.appUsages.take(5).map((app) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _AppUsageRow(
+                    app: app,
+                    maxMinutes: stats.appUsages.first.todayMinutes,
+                    accent: accent,
+                  ),
+                )),
+            if (stats.appUsages.length > 5)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '+${stats.appUsages.length - 5} more apps',
+                  style: const TextStyle(color: kTextSecondary, fontSize: 12),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Mini stat tile (inside profile detail) ─────────────────────────────────
+class _MiniStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  const _MiniStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: kBg,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: kTextPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(color: kTextSecondary, fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Week bar chart ─────────────────────────────────────────────────────────
+class _WeekChart extends StatelessWidget {
+  final List<DailyUsage> history;
+  final Color accent;
+  const _WeekChart({required this.history, required this.accent});
+
+  static const _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  @override
+  Widget build(BuildContext context) {
+    final maxVal = history
+        .fold<int>(1, (m, d) => d.totalMinutes > m ? d.totalMinutes : m);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: history.map((day) {
+        final fraction = day.totalMinutes / maxVal;
+        final isToday = day.date.day == DateTime.now().day &&
+            day.date.month == DateTime.now().month;
+        final dayLabel = _dayLabels[day.date.weekday - 1];
+
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Bar
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: (fraction * 50).clamp(4.0, 50.0),
+                  decoration: BoxDecoration(
+                    color: isToday
+                        ? accent
+                        : accent.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Day label
+                Text(
+                  dayLabel,
+                  style: TextStyle(
+                    color: isToday ? kTextPrimary : kTextSecondary,
+                    fontSize: 10,
+                    fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ── Per-app usage row ──────────────────────────────────────────────────────
+class _AppUsageRow extends StatelessWidget {
+  final AppUsage app;
+  final int maxMinutes;
+  final Color accent;
+  const _AppUsageRow({
+    required this.app,
+    required this.maxMinutes,
+    required this.accent,
+  });
+
+  String _fmtMin(int m) {
+    if (m < 60) return '${m}m';
+    final h = m ~/ 60;
+    final r = m % 60;
+    return r > 0 ? '${h}h ${r}m' : '${h}h';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = maxMinutes > 0 ? app.todayMinutes / maxMinutes : 0.0;
+
+    return Row(
+      children: [
+        // App name
+        SizedBox(
+          width: 90,
+          child: Text(
+            app.appName,
+            style: const TextStyle(color: kTextPrimary, fontSize: 13),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Progress bar
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: fraction,
+              backgroundColor: kBorder,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                accent.withValues(alpha: 0.6),
+              ),
+              minHeight: 6,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Duration
+        SizedBox(
+          width: 50,
+          child: Text(
+            _fmtMin(app.todayMinutes),
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: kTextSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
