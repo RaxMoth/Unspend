@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/home/home_screen.dart';
+import '../features/app_blocker/presentation/pages/app_blocker_screen.dart';
 
 /// App Router Configuration
 final goRouter = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/app-blocker',
   routes: [
     GoRoute(
-      path: '/',
-      name: 'home',
-      builder: (context, state) => const HomeScreen(),
+      path: '/app-blocker',
+      name: 'app_blocker',
+      builder: (context, state) => const AppBlockerScreen(),
     ),
-    // Add more routes here
   ],
   errorBuilder: (context, state) => Scaffold(
     appBar: AppBar(title: const Text('Error')),

@@ -66,5 +66,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSFamilyControlsUsageDescription</key>
+	<string>FocusLock needs this to block selected apps.</string>
 </dict>
 </plist>

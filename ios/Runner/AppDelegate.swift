@@ -1,16 +1,46 @@
 import Flutter
 import UIKit
+import FamilyControls
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
-  override func application(
-    _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-  ) -> Bool {
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
+    private let screenTimeChannel = ScreenTimeChannel()
+    private var pickerChannel: FlutterMethodChannel?
 
-  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-  }
+    override func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    }
+
+    func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+        GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+        let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "ScreenTimePlugin")!
+        screenTimeChannel.register(with: registrar)
+
+        pickerChannel = FlutterMethodChannel(
+            name: "com.maxroth.backyourtime/apppicker",
+            binaryMessenger: registrar.messenger()
+        )
+        pickerChannel?.setMethodCallHandler { [weak self] call, result in
+            if call.method == "showPicker" {
+                self?.showAppPicker(result: result)
+            } else {
+                result(FlutterMethodNotImplemented)
+            }
+        }
+    }
+
+    private func showAppPicker(result: @escaping FlutterResult) {
+        guard let rootVC = window?.rootViewController else {
+            result(FlutterError(code: "NO_ROOT_VC", message: nil, details: nil))
+            return
+        }
+        let pickerVC = AppPickerViewController()
+        pickerVC.onSelectionSaved = { result(true) }
+        pickerVC.modalPresentationStyle = .formSheet
+        rootVC.present(pickerVC, animated: true)
+    }
 }

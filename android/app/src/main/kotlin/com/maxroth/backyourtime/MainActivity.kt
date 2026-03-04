@@ -1,4 +1,4 @@
-package com.example.flutterbase
+package com.maxroth.backyourtime
 
 import io.flutter.embedding.android.FlutterActivity
 

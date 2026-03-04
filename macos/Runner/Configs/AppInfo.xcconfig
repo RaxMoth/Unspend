@@ -8,7 +8,7 @@
 PRODUCT_NAME = flutterbase
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterbase
+PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
