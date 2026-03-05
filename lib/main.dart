@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/theme/app_theme.dart';
+import 'package:unspend/core/theme/design_tokens.dart';
 import 'package:unspend/shared/providers/locale_provider.dart';
+import 'package:unspend/shared/providers/theme_mode_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,11 +25,17 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch locale so the entire widget tree rebuilds on language switch.
     final langCode = ref.watch(localeProvider);
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
       title: 'Unspend',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
+      themeMode: themeMode,
+      builder: (context, child) {
+        // Keep design-token getters in sync with the resolved brightness.
+        updateTokenBrightness(Theme.of(context).brightness);
+        return child!;
+      },
       locale: Locale(langCode),
       supportedLocales: const [
         Locale('en'),

@@ -8,6 +8,7 @@ import '../../domain/entities/usage_stats.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/theme/design_tokens.dart';
 import 'package:unspend/shared/providers/locale_provider.dart';
+import 'package:unspend/shared/providers/theme_mode_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -15,6 +16,10 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profilesAsync = ref.watch(profilesProvider);
+    // Watch theme so the scaffold rebuilds on theme change,
+    // and sync the global brightness *before* any kBg / kSurface calls.
+    ref.watch(themeModeProvider);
+    updateTokenBrightness(Theme.of(context).brightness);
 
     return Scaffold(
       backgroundColor: kBg,
@@ -85,7 +90,7 @@ class DashboardScreen extends ConsumerWidget {
             TextField(
               controller: controller,
               autofocus: true,
-              style: const TextStyle(color: kTextPrimary, fontSize: 16),
+              style: TextStyle(color: kTextPrimary, fontSize: 16),
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
                 hintText: S.current.profileNameHint,
@@ -95,11 +100,11 @@ class DashboardScreen extends ConsumerWidget {
                 fillColor: kBg,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: kBorder),
+                  borderSide: BorderSide(color: kBorder),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: kBorder),
+                  borderSide: BorderSide(color: kBorder),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -150,6 +155,8 @@ class _DashboardBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch locale so the dashboard rebuilds when language changes.
     ref.watch(localeProvider);
+    // Watch theme so the dashboard rebuilds when the theme changes.
+    ref.watch(themeModeProvider);
     final activeCount = profiles.where((p) => p.isActive).length;
 
     return CustomScrollView(
@@ -176,7 +183,7 @@ class _DashboardBody extends ConsumerWidget {
                     const Spacer(),
                     IconButton(
                       onPressed: () => _showSettingsSheet(context, ref),
-                      icon: const Icon(Icons.settings_rounded,
+                      icon: Icon(Icons.settings_rounded,
                           color: kTextSecondary, size: 22),
                     ),
                   ],
@@ -208,7 +215,7 @@ class _DashboardBody extends ConsumerWidget {
                     const Spacer(),
                     Text(
                       '${profiles.length}',
-                      style: const TextStyle(color: kTextSecondary, fontSize: 14),
+                      style: TextStyle(color: kTextSecondary, fontSize: 14),
                     ),
                   ],
                 ),
@@ -275,7 +282,7 @@ class _DashboardBody extends ConsumerWidget {
                       SnackBar(
                         content: Text(
                           S.current.noAppsWarning,
-                          style: const TextStyle(color: kTextPrimary),
+                          style: TextStyle(color: kTextPrimary),
                         ),
                         backgroundColor: kSurface,
                         behavior: SnackBarBehavior.floating,
@@ -344,7 +351,7 @@ class _DashboardBody extends ConsumerWidget {
                       fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
               ListTile(
-                leading: const Icon(Icons.lock_rounded, color: kTextSecondary),
+                leading: Icon(Icons.lock_rounded, color: kTextSecondary),
                 title: Text(S.current.changePin,
                     style: TextStyle(color: kTextPrimary)),
                 subtitle: Text(S.current.changePinSubtitle,
@@ -360,14 +367,33 @@ class _DashboardBody extends ConsumerWidget {
               const SizedBox(height: 8),
               ListTile(
                 leading:
-                    const Icon(Icons.language_rounded, color: kTextSecondary),
+                    Icon(Icons.brightness_6_rounded, color: kTextSecondary),
+                title: Text(S.current.themeLabel,
+                    style: TextStyle(color: kTextPrimary)),
+                subtitle: Text(
+                    _currentThemeModeName(ref),
+                    style: TextStyle(color: kTextSecondary, fontSize: 12)),
+                trailing:
+                    Icon(Icons.chevron_right_rounded, color: kTextSecondary),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                tileColor: kBg,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showThemePicker(context, ref);
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading:
+                    Icon(Icons.language_rounded, color: kTextSecondary),
                 title: Text(S.current.languageLabel,
                     style: TextStyle(color: kTextPrimary)),
                 subtitle: Text(
                     _currentLanguageName(),
                     style: TextStyle(color: kTextSecondary, fontSize: 12)),
                 trailing:
-                    const Icon(Icons.chevron_right_rounded, color: kTextSecondary),
+                    Icon(Icons.chevron_right_rounded, color: kTextSecondary),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 tileColor: kBg,
@@ -476,6 +502,98 @@ class _DashboardBody extends ConsumerWidget {
       },
     );
   }
+
+  // ── Theme picker ─────────────────────────────────────────────────────────
+  static String _currentThemeModeName(WidgetRef ref) {
+    final mode = ref.read(themeModeProvider);
+    return switch (mode) {
+      ThemeMode.system => S.current.themeSystem,
+      ThemeMode.light  => S.current.themeLight,
+      ThemeMode.dark   => S.current.themeDark,
+    };
+  }
+
+  void _showThemePicker(BuildContext context, WidgetRef ref) {
+    final current = ref.read(themeModeProvider);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: kSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(kRadius)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: kBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(S.current.themeLabel,
+                  style: TextStyle(
+                      color: kTextPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ..._themeEntries.map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _themeOption(ctx, ref,
+                        mode: e.mode,
+                        label: e.label(),
+                        icon: e.icon,
+                        selected: current == e.mode),
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static final _themeEntries = [
+    (mode: ThemeMode.system, label: () => S.current.themeSystem, icon: Icons.brightness_auto_rounded),
+    (mode: ThemeMode.light,  label: () => S.current.themeLight,  icon: Icons.light_mode_rounded),
+    (mode: ThemeMode.dark,   label: () => S.current.themeDark,   icon: Icons.dark_mode_rounded),
+  ];
+
+  Widget _themeOption(
+    BuildContext ctx,
+    WidgetRef ref, {
+    required ThemeMode mode,
+    required String label,
+    required IconData icon,
+    required bool selected,
+  }) {
+    return ListTile(
+      leading: Icon(
+        selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+        color: selected ? kAccent : kTextSecondary,
+      ),
+      title: Row(
+        children: [
+          Icon(icon, color: selected ? kAccent : kTextSecondary, size: 20),
+          const SizedBox(width: 10),
+          Text(label, style: TextStyle(color: kTextPrimary)),
+        ],
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      tileColor: kBg,
+      onTap: () {
+        Navigator.pop(ctx);
+        ref.read(themeModeProvider.notifier).setMode(mode);
+      },
+    );
+  }
 }
 
 // ── Summary Card ───────────────────────────────────────────────────────────
@@ -493,8 +611,8 @@ class _SummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(kRadius),
         gradient: anyActive
-            ? const LinearGradient(
-                colors: [Color(0xFF2B0D0D), Color(0xFF1A0808)],
+            ? LinearGradient(
+                colors: kActiveGradient,
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -534,7 +652,7 @@ class _SummaryCard extends StatelessWidget {
                       : totalProfiles == 0
                           ? S.current.noProfiles
                           : S.current.shieldsInactive,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: kTextPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -547,7 +665,7 @@ class _SummaryCard extends StatelessWidget {
                       : totalProfiles == 0
                           ? S.current.createProfileToStart
                           : S.current.noProfilesAreActive,
-                  style: const TextStyle(color: kTextSecondary, fontSize: 13),
+                  style: TextStyle(color: kTextSecondary, fontSize: 13),
                 ),
               ],
             ),
@@ -675,7 +793,7 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: kTextPrimary,
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -684,7 +802,7 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(color: kTextSecondary, fontSize: 11),
+            style: TextStyle(color: kTextSecondary, fontSize: 11),
           ),
         ],
       ),
@@ -788,7 +906,7 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
                     children: [
                       Text(
                         profile.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: kTextPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -799,7 +917,7 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
                       const SizedBox(height: 4),
                       Text(
                         profile.subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: kTextSecondary, fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -863,7 +981,7 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
                         width: 24,
                         height: 24,
                         margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: kTextPrimary,
                           shape: BoxShape.circle,
                         ),
@@ -912,7 +1030,7 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
             // ── Inline task list ───────────────────────────────────────
             if (profile.taskModeEnabled && profile.tasks.isNotEmpty) ...[
               const SizedBox(height: 10),
-              const Divider(color: kBorder, height: 1),
+              Divider(color: kBorder, height: 1),
               const SizedBox(height: 8),
               ...profile.tasks.map((task) => Semantics(
                     label: '${task.title}, ${task.isDone ? S.current.allTasksDoneNote : S.current.tasks}',
@@ -1016,7 +1134,7 @@ class _ProfileDetailPageShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profilesAsync = ref.watch(profilesProvider);
     return profilesAsync.when(
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         backgroundColor: kBg,
         body: Center(child: CircularProgressIndicator(color: kAccent)),
       ),
@@ -1031,7 +1149,7 @@ class _ProfileDetailPageShell extends ConsumerWidget {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) Navigator.of(context).pop();
           });
-          return const Scaffold(backgroundColor: kBg);
+          return Scaffold(backgroundColor: kBg);
         }
         return ProfileDetailScreen(profile: profile);
       },
@@ -1140,7 +1258,7 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded,
+                    icon: Icon(Icons.arrow_back_rounded,
                         color: kTextPrimary),
                     onPressed: () {
                       _save();
@@ -1150,7 +1268,7 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                   const Spacer(),
                   if (!p.isActive)
                     IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded,
+                      icon: Icon(Icons.delete_outline_rounded,
                           color: kTextSecondary),
                       onPressed: () => _confirmDelete(context),
                     ),
@@ -1185,7 +1303,7 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                       controller: _nameController,
                       textAlign: TextAlign.center,
                       readOnly: locked,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: kTextPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -1229,7 +1347,7 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                                       : null,
                                 ),
                                 child: isSelected
-                                    ? const Icon(Icons.check,
+                                    ? Icon(Icons.check,
                                         color: kTextPrimary, size: 18)
                                     : null,
                               ),
@@ -1511,7 +1629,7 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                                         ),
                                         child: Text(
                                           '${_usageLimitMinutes}m',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             color: kTextPrimary,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
@@ -1646,7 +1764,7 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                                   SnackBar(
                                     content: Text(
                                       S.current.noAppsWarning,
-                                      style: const TextStyle(color: kTextPrimary),
+                                      style: TextStyle(color: kTextPrimary),
                                     ),
                                     backgroundColor: kSurface,
                                     behavior: SnackBarBehavior.floating,
@@ -1676,13 +1794,13 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
         backgroundColor: kSurface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(kRadius),
-          side: const BorderSide(color: kBorder),
+          side: BorderSide(color: kBorder),
         ),
         title: Text(S.current.deleteProfile,
             style: TextStyle(color: kTextPrimary)),
         content: Text(
           S.current.deleteProfileConfirm(widget.profile.name),
-          style: const TextStyle(color: kTextSecondary),
+          style: TextStyle(color: kTextSecondary),
         ),
         actions: [
           TextButton(
@@ -1719,7 +1837,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         color: kTextSecondary,
         fontSize: 13,
         fontWeight: FontWeight.w600,
@@ -1805,7 +1923,7 @@ class _RuleToggleCard extends StatelessWidget {
                   ),
                   Text(
                     description,
-                    style: const TextStyle(color: kTextSecondary, fontSize: 11),
+                    style: TextStyle(color: kTextSecondary, fontSize: 11),
                   ),
                 ],
               ),
@@ -1829,7 +1947,7 @@ class _RuleToggleCard extends StatelessWidget {
                     width: 22,
                     height: 22,
                     margin: const EdgeInsets.symmetric(horizontal: 3),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: kTextPrimary,
                       shape: BoxShape.circle,
                     ),
@@ -1870,11 +1988,11 @@ class _TimeTile extends StatelessWidget {
           children: [
             Text(label,
                 style:
-                    const TextStyle(color: kTextSecondary, fontSize: 11)),
+                    TextStyle(color: kTextSecondary, fontSize: 11)),
             const SizedBox(height: 4),
             Text(
               formatted,
-              style: const TextStyle(
+              style: TextStyle(
                 color: kTextPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -1976,7 +2094,7 @@ class _PinSetupDialogState extends State<_PinSetupDialog> {
       backgroundColor: kSurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kRadius),
-        side: const BorderSide(color: kBorder),
+        side: BorderSide(color: kBorder),
       ),
       title: Text(S.current.setPinTitle,
           style: TextStyle(color: kTextPrimary, fontSize: 18)),
@@ -2030,19 +2148,19 @@ class _PinSetupDialogState extends State<_PinSetupDialog> {
       controller: controller,
       obscureText: obscure,
       keyboardType: TextInputType.visiblePassword,
-      style: const TextStyle(color: kTextPrimary, fontSize: 16),
+      style: TextStyle(color: kTextPrimary, fontSize: 16),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: kTextSecondary, fontSize: 13),
+        labelStyle: TextStyle(color: kTextSecondary, fontSize: 13),
         filled: true,
         fillColor: kBg,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: kBorder),
+          borderSide: BorderSide(color: kBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: kBorder),
+          borderSide: BorderSide(color: kBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -2130,7 +2248,7 @@ class _TimerThenPinDialogState extends State<_TimerThenPinDialog> {
       backgroundColor: kSurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kRadius),
-        side: const BorderSide(color: kBorder),
+        side: BorderSide(color: kBorder),
       ),
       title: Text(
         _step == _DeactivateStep.waiting
@@ -2138,7 +2256,7 @@ class _TimerThenPinDialogState extends State<_TimerThenPinDialog> {
             : _pinRequired
                 ? S.current.enterPinToDeactivate
                 : S.current.confirmDeactivation,
-        style: const TextStyle(color: kTextPrimary, fontSize: 18),
+        style: TextStyle(color: kTextPrimary, fontSize: 18),
       ),
       content: _step == _DeactivateStep.waiting
           ? _buildWaiting()
@@ -2212,20 +2330,20 @@ class _TimerThenPinDialogState extends State<_TimerThenPinDialog> {
           controller: _pinController,
           obscureText: _obscure,
           keyboardType: TextInputType.visiblePassword,
-          style: const TextStyle(color: kTextPrimary, fontSize: 16),
+          style: TextStyle(color: kTextPrimary, fontSize: 16),
           decoration: InputDecoration(
             labelText: S.current.pinLabel,
             labelStyle:
-                const TextStyle(color: kTextSecondary, fontSize: 13),
+                TextStyle(color: kTextSecondary, fontSize: 13),
             filled: true,
             fillColor: kBg,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: kBorder),
+              borderSide: BorderSide(color: kBorder),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: kBorder),
+              borderSide: BorderSide(color: kBorder),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -2413,7 +2531,7 @@ class _TaskListSectionState extends ConsumerState<_TaskListSection> {
                         onTap: () => ref
                             .read(profilesProvider.notifier)
                             .removeTask(widget.profile.id, task.id),
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.all(4),
                           child: Icon(Icons.close_rounded,
                               color: kTextSecondary, size: 18),
@@ -2431,11 +2549,11 @@ class _TaskListSectionState extends ConsumerState<_TaskListSection> {
                 Expanded(
                   child: TextField(
                     controller: _taskController,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: kTextPrimary, fontSize: 14),
                     decoration: InputDecoration(
                       hintText: S.current.addTaskHint,
-                      hintStyle: const TextStyle(
+                      hintStyle: TextStyle(
                           color: kTextSecondary, fontSize: 14),
                       isDense: true,
                       filled: true,
@@ -2444,11 +2562,11 @@ class _TaskListSectionState extends ConsumerState<_TaskListSection> {
                           horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: kBorder),
+                        borderSide: BorderSide(color: kBorder),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: kBorder),
+                        borderSide: BorderSide(color: kBorder),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -2489,7 +2607,7 @@ class _TaskListSectionState extends ConsumerState<_TaskListSection> {
                     doneCount == tasks.length
                         ? S.current.allTasksDoneNote
                         : S.current.tasksRemainingNote(tasks.length - doneCount),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: kTextSecondary,
                       fontSize: 12,
                       fontStyle: FontStyle.italic,
@@ -2642,7 +2760,7 @@ class _ProfileUsageSection extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   S.current.moreApps(stats.appUsages.length - 5),
-                  style: const TextStyle(color: kTextSecondary, fontSize: 12),
+                  style: TextStyle(color: kTextSecondary, fontSize: 12),
                 ),
               ),
           ],
@@ -2679,7 +2797,7 @@ class _MiniStat extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: kTextPrimary,
               fontSize: 15,
               fontWeight: FontWeight.bold,
@@ -2688,7 +2806,7 @@ class _MiniStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(color: kTextSecondary, fontSize: 10),
+            style: TextStyle(color: kTextSecondary, fontSize: 10),
           ),
         ],
       ),
@@ -2782,7 +2900,7 @@ class _AppUsageRow extends StatelessWidget {
           width: 90,
           child: Text(
             app.appName,
-            style: const TextStyle(color: kTextPrimary, fontSize: 13),
+            style: TextStyle(color: kTextPrimary, fontSize: 13),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -2809,7 +2927,7 @@ class _AppUsageRow extends StatelessWidget {
           child: Text(
             _fmtMin(app.todayMinutes),
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               color: kTextSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w500,

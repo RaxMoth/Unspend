@@ -112,6 +112,10 @@ abstract class S {
   String get languageSpanish;
   String get languageFrench;
   String get languageCroatian;
+  String get themeLabel;
+  String get themeSystem;
+  String get themeLight;
+  String get themeDark;
 
   // ── Profile Detail ───────────────────────────────────────────────────────
   String get profileNamePlaceholder;
@@ -249,6 +253,10 @@ class _En extends S {
   @override String get languageSpanish => 'Spanish';
   @override String get languageFrench => 'French';
   @override String get languageCroatian => 'Croatian';
+  @override String get themeLabel => 'Theme';
+  @override String get themeSystem => 'System';
+  @override String get themeLight => 'Light';
+  @override String get themeDark => 'Dark';
 
   @override String get profileNamePlaceholder => 'Profile Name';
   @override String get sectionColor => 'Color';
@@ -374,6 +382,10 @@ class _De extends S {
   @override String get languageSpanish => 'Spanisch';
   @override String get languageFrench => 'Französisch';
   @override String get languageCroatian => 'Kroatisch';
+  @override String get themeLabel => 'Design';
+  @override String get themeSystem => 'System';
+  @override String get themeLight => 'Hell';
+  @override String get themeDark => 'Dunkel';
 
   @override String get profileNamePlaceholder => 'Profilname';
   @override String get sectionColor => 'Farbe';
@@ -499,6 +511,10 @@ class _Es extends S {
   @override String get languageSpanish => 'Español';
   @override String get languageFrench => 'Francés';
   @override String get languageCroatian => 'Croata';
+  @override String get themeLabel => 'Tema';
+  @override String get themeSystem => 'Sistema';
+  @override String get themeLight => 'Claro';
+  @override String get themeDark => 'Oscuro';
 
   @override String get profileNamePlaceholder => 'Nombre del perfil';
   @override String get sectionColor => 'Color';
@@ -624,6 +640,10 @@ class _Fr extends S {
   @override String get languageSpanish => 'Espagnol';
   @override String get languageFrench => 'Français';
   @override String get languageCroatian => 'Croate';
+  @override String get themeLabel => 'Thème';
+  @override String get themeSystem => 'Système';
+  @override String get themeLight => 'Clair';
+  @override String get themeDark => 'Sombre';
 
   @override String get profileNamePlaceholder => 'Nom du profil';
   @override String get sectionColor => 'Couleur';
@@ -749,6 +769,10 @@ class _Hr extends S {
   @override String get languageSpanish => 'Španjolski';
   @override String get languageFrench => 'Francuski';
   @override String get languageCroatian => 'Hrvatski';
+  @override String get themeLabel => 'Tema';
+  @override String get themeSystem => 'Sustav';
+  @override String get themeLight => 'Svijetla';
+  @override String get themeDark => 'Tamna';
 
   @override String get profileNamePlaceholder => 'Naziv profila';
   @override String get sectionColor => 'Boja';
