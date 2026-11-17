@@ -43,6 +43,12 @@ WAYS TO BLOCK
 • Daily budget — give yourself 20 minutes of social. After that, blocked until tomorrow.
 • Task mode — block until your to-dos are done. Check them off to earn access.
 
+FOR YOU — OR FOR YOUR CHILD
+
+• Your own iPhone: a trusted person sets the PIN, so you can't talk yourself out of a block.
+• Your child's iPhone: a parent or guardian approves Unspend once with their Apple Account (Family Sharing). Your child can't delete Unspend or switch it off, and only your PIN lifts a block.
+• Uninstall protection: while a block is running, apps can't be deleted from the phone.
+
 STACK THEM
 
 Combine any of the above. "Block Instagram between 9 and 5, AND only after I've done my three tasks, AND with a 30-minute daily ceiling." Unspend stacks the rules — strictest one wins.
@@ -56,7 +62,7 @@ PRIVATE BY DESIGN
 
 REQUIRES iOS 16+
 
-Unspend uses Apple's Family Controls framework to enforce blocks. You'll be prompted to authorize it once on first use. It's a self-blocking tool, not a parental-controls app.
+Unspend uses Apple's Family Controls framework to enforce blocks. You'll be asked to allow it once on first use. For a child's iPhone, the child must be part of your Family Sharing group.
 
 AVAILABLE IN
 
@@ -72,7 +78,7 @@ Built solo. Designed for people who already know they have a phone problem and j
 ## Keywords (100 chars total — comma-separated, no spaces after commas)
 
 ```
-focus,block apps,screen time,distraction,productivity,self control,limit,timer,phone addiction,unspend
+focus,block apps,screen time,distraction,self control,limit,parental,kids,phone addiction,unspend
 ```
 
 (Apple ignores keywords that already appear in your app name/subtitle, so I left "unspend" in to be safe.)
@@ -87,6 +93,8 @@ First release.
 • Block apps with manual, schedule, daily-budget, or task-completion rules
 • Stack multiple rules per profile
 • PIN-protected deactivation with a 5-minute cooldown
+• For your own iPhone or your child's (Family Sharing)
+• Uninstall protection while a block is running
 • Custom shield screen showing which profile is blocking the app
 • 100% on-device — no accounts, no tracking
 • English, German, Spanish, French, Croatian

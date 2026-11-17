@@ -1,95 +1,229 @@
-import UIKit
-import SwiftUI
 import FamilyControls
-import Foundation
+import Flutter
+import SwiftUI
+import UIKit
 
-class AppPickerViewController: UIViewController {
-    /// Profile ID this picker is editing. Required — selection is stored
-    /// per-profile under `blockedApps_<profileId>`.
-    var profileId: String = ""
+/// Text for the picker sheet, supplied by Dart in the app's current language.
+struct AppPickerLabels {
+    var title = "Choose Apps"
+    var cancel = "Cancel"
+    var save = "Save"
+    var tooMany = "Too many individual apps selected. Choose whole categories instead."
 
-    /// (count, selectionData) — selectionData is JSON-encoded FamilyActivitySelection
-    var onSelectionSaved: ((Int) -> Void)?
-    private let sharedDefaults = UserDefaults(suiteName: "group.com.maxroth.backyourtime")
+    init() {}
 
-    private var selectionKey: String { "blockedApps_\(profileId)" }
+    init(_ args: [String: Any]) {
+        if let value = args["title"] as? String, !value.isEmpty { title = value }
+        if let value = args["cancel"] as? String, !value.isEmpty { cancel = value }
+        if let value = args["save"] as? String, !value.isEmpty { save = value }
+        if let value = args["tooMany"] as? String, !value.isEmpty { tooMany = value }
+    }
+}
+
+/// Method channel that presents the system app picker for one profile.
+///
+/// `showPicker` answers with the number of selected items, or nil when the
+/// user cancelled. It always answers exactly once.
+final class AppPickerChannel {
+    static let channelName = "com.maxroth.backyourtime/apppicker"
+
+    func register(with registrar: FlutterPluginRegistrar) {
+        let channel = FlutterMethodChannel(
+            name: AppPickerChannel.channelName,
+            binaryMessenger: registrar.messenger()
+        )
+        channel.setMethodCallHandler { [weak self] call, result in
+            guard call.method == "showPicker" else {
+                result(FlutterMethodNotImplemented)
+                return
+            }
+            self?.showPicker(call.arguments as? [String: Any] ?? [:], result: result)
+        }
+    }
+
+    private func showPicker(_ args: [String: Any], result: @escaping FlutterResult) {
+        guard let profileId = args["profileId"] as? String, !profileId.isEmpty else {
+            result(FlutterError(code: "INVALID_ARGS", message: "Missing profileId", details: nil))
+            return
+        }
+        guard let shared = SharedStore() else {
+            result(FlutterError(
+                code: "NO_APP_GROUP", message: "The shared App Group is not available", details: nil))
+            return
+        }
+        // Changing the selection of a profile that is blocking right now
+        // would be a way around the block.
+        guard !shared.activeProfileIds.contains(profileId) else {
+            result(FlutterError(
+                code: "PROFILE_ACTIVE", message: "Deactivate the profile before changing its apps",
+                details: nil))
+            return
+        }
+        guard let presenter = Self.topViewController() else {
+            result(FlutterError(code: "NO_ROOT_VC", message: "No window to present from", details: nil))
+            return
+        }
+
+        let picker = AppPickerViewController(
+            profileId: profileId,
+            labels: AppPickerLabels(args),
+            shared: shared,
+            completion: { count in result(count) }
+        )
+        presenter.present(picker, animated: true)
+    }
+
+    private static func topViewController() -> UIViewController? {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+        var top = (windows.first(where: \.isKeyWindow) ?? windows.first)?.rootViewController
+        while let presented = top?.presentedViewController {
+            top = presented
+        }
+        return top
+    }
+}
+
+/// Hosts `FamilyActivityPicker` for a single profile. The selection is stored
+/// per profile, so picking apps for one profile never changes another.
+final class AppPickerViewController: UIViewController {
+    private let profileId: String
+    private let labels: AppPickerLabels
+    private let shared: SharedStore
+    private var completion: ((Int?) -> Void)?
+
+    init(
+        profileId: String,
+        labels: AppPickerLabels,
+        shared: SharedStore,
+        completion: @escaping (Int?) -> Void
+    ) {
+        self.profileId = profileId
+        self.labels = labels
+        self.shared = shared
+        self.completion = completion
+        super.init(nibName: nil, bundle: nil)
+        modalPresentationStyle = .formSheet
+        // Swiping the sheet away would leave Dart waiting; make the user
+        // choose Cancel or Save.
+        isModalInPresentation = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        return nil
+    }
+
+    deinit {
+        // Last resort: whatever happened to the sheet, Dart gets an answer.
+        completion?(nil)
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // Pre-populate the picker with this profile's existing selection,
-        // so re-opening the picker shows the user what they previously picked.
-        let initial: FamilyActivitySelection = {
-            guard !profileId.isEmpty,
-                  let data = sharedDefaults?.data(forKey: selectionKey),
-                  let stored = try? JSONDecoder().decode(
-                      FamilyActivitySelection.self, from: data) else {
-                return FamilyActivitySelection()
-            }
-            return stored
-        }()
-
-        let key = selectionKey
         let pickerView = AppPickerView(
-            initialSelection: initial,
-            onSave: { [weak self] selection in
-                let count = selection.applicationTokens.count
-                    + selection.categoryTokens.count
-                    + selection.webDomainTokens.count
-                if let data = try? JSONEncoder().encode(selection) {
-                    self?.sharedDefaults?.set(data, forKey: key)
-                }
-                self?.dismiss(animated: true) {
-                    self?.onSelectionSaved?(count)
-                }
-            },
-            onCancel: { [weak self] in
-                self?.dismiss(animated: true)
-            }
+            initialSelection: ShieldEnforcer.selection(for: profileId, in: shared)
+                ?? FamilyActivitySelection(),
+            labels: labels,
+            onSave: { [weak self] selection in self?.save(selection) },
+            onCancel: { [weak self] in self?.finish(with: nil) }
         )
-        let hostingController = UIHostingController(rootView: pickerView)
-        addChild(hostingController)
-        view.addSubview(hostingController.view)
-        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+        let host = UIHostingController(rootView: pickerView)
+        addChild(host)
+        view.addSubview(host.view)
+        host.view.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            host.view.topAnchor.constraint(equalTo: view.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            host.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
         ])
-        hostingController.didMove(toParent: self)
+        host.didMove(toParent: self)
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // Dismissed by something other than the two buttons.
+        if isBeingDismissed || presentingViewController == nil {
+            answer(nil)
+        }
+    }
+
+    private func save(_ selection: FamilyActivitySelection) {
+        guard let data = try? JSONEncoder().encode(selection) else {
+            finish(with: nil)
+            return
+        }
+        shared.setSelectionData(data, for: profileId)
+        finish(with: selection.applicationTokens.count
+            + selection.categoryTokens.count
+            + selection.webDomainTokens.count)
+    }
+
+    private func finish(with count: Int?) {
+        dismiss(animated: true) { [weak self] in self?.answer(count) }
+    }
+
+    /// Hands the result to Dart, once.
+    private func answer(_ count: Int?) {
+        guard let completion else { return }
+        self.completion = nil
+        completion(count)
     }
 }
 
 private struct AppPickerView: View {
     @State private var selection: FamilyActivitySelection
-    var onSave: (FamilyActivitySelection) -> Void
-    var onCancel: () -> Void
+    let labels: AppPickerLabels
+    let onSave: (FamilyActivitySelection) -> Void
+    let onCancel: () -> Void
 
-    init(initialSelection: FamilyActivitySelection,
-         onSave: @escaping (FamilyActivitySelection) -> Void,
-         onCancel: @escaping () -> Void) {
-        self._selection = State(initialValue: initialSelection)
+    init(
+        initialSelection: FamilyActivitySelection,
+        labels: AppPickerLabels,
+        onSave: @escaping (FamilyActivitySelection) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        _selection = State(initialValue: initialSelection)
+        self.labels = labels
         self.onSave = onSave
         self.onCancel = onCancel
     }
 
+    /// iOS shields at most 50 individually picked apps (and 50 websites) per
+    /// profile; categories have no such limit.
+    private var hasTooMany: Bool {
+        selection.applicationTokens.count > ShieldEnforcer.maxTokensPerKind
+            || selection.webDomainTokens.count > ShieldEnforcer.maxTokensPerKind
+    }
+
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 0) {
                 FamilyActivityPicker(selection: $selection)
+                if hasTooMany {
+                    Text(labels.tooMany)
+                        .font(.footnote)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding()
+                }
             }
-            .navigationTitle("Choose Apps")
+            .navigationTitle(labels.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { onCancel() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(labels.cancel, action: onCancel)
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") { onSave(selection) }
-                        .disabled(selection.applicationTokens.isEmpty && selection.categoryTokens.isEmpty && selection.webDomainTokens.isEmpty)
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(labels.save) { onSave(selection) }
+                        .disabled(ShieldEnforcer.isEmpty(selection) || hasTooMany)
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }

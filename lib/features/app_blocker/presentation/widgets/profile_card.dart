@@ -1,19 +1,17 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/theme/design_tokens.dart';
+import 'package:unspend/core/widgets/app_switch.dart';
+
 import '../../domain/entities/blocker_profile.dart';
+import '../profile_formatters.dart';
+import '../providers/current_minute_provider.dart';
 import '../providers/profiles_provider.dart';
 
-// ── Mode Chip ───────────────────────────────────────────────────────────────
+/// Small label naming one of a profile's rules.
 class ModeChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final bool isActive;
-
   const ModeChip({
     super.key,
     required this.icon,
@@ -22,36 +20,41 @@ class ModeChip extends StatelessWidget {
     required this.isActive,
   });
 
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isActive;
+
   @override
   Widget build(BuildContext context) {
-    final chipColor = isActive ? color : kTextSecondary;
-    return Semantics(
-      label: '$label mode ${isActive ? "active" : "inactive"}',
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: chipColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 12, color: chipColor),
-            const SizedBox(width: 4),
-            Text(label, style: TextStyle(color: chipColor, fontSize: 11)),
-          ],
-        ),
+    final chipColor = isActive ? kReadable(color) : kTextSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: chipColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: chipColor),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(color: chipColor, fontSize: 11),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ── Profile Card ────────────────────────────────────────────────────────────
-class ProfileCard extends ConsumerStatefulWidget {
-  final BlockerProfile profile;
-  final VoidCallback onTap;
-  final VoidCallback onToggle;
-
+/// A profile on the dashboard: what it blocks, whether it is active and
+/// blocking right now, a switch to turn it on or off and, in task mode,
+/// today's tasks.
+class ProfileCard extends ConsumerWidget {
   const ProfileCard({
     super.key,
     required this.profile,
@@ -59,270 +62,257 @@ class ProfileCard extends ConsumerStatefulWidget {
     required this.onToggle,
   });
 
-  @override
-  ConsumerState<ProfileCard> createState() => _ProfileCardState();
-}
-
-class _ProfileCardState extends ConsumerState<ProfileCard> {
-  Timer? _ticker;
+  final BlockerProfile profile;
+  final VoidCallback onTap;
+  final VoidCallback onToggle;
 
   @override
-  void initState() {
-    super.initState();
-    _startTickerIfActive();
-  }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = S.current;
+    final now = ref.watch(currentMinuteProvider);
+    final limitReached = ref.watch(
+      shieldStatusProvider.select(
+        (statuses) => statuses[profile.id]?.limitReachedToday ?? false,
+      ),
+    );
+    final blocking = profile.isBlockingAt(now, limitReachedToday: limitReached);
+    final reason = profile.requirementReason(
+      s,
+      now,
+      limitReachedToday: limitReached,
+    );
+    final subtitle = profile.subtitle(s);
+    final status = profile.isActive
+        ? '${s.statusActive}, $reason'
+        : s.statusInactive;
 
-  @override
-  void didUpdateWidget(ProfileCard old) {
-    super.didUpdateWidget(old);
-    _startTickerIfActive();
-  }
-
-  void _startTickerIfActive() {
-    _ticker?.cancel();
-    if (widget.profile.isActive && !widget.profile.isManualOnly) {
-      _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
-        if (mounted) setState(() {});
-      });
+    void open() {
+      HapticFeedback.selectionClick();
+      onTap();
     }
-  }
 
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final profile = widget.profile;
-    final unlocked = profile.isActive && profile.areRequirementsMet;
-    return Semantics(
-      label:
-          '${profile.name}, ${profile.subtitle}, ${profile.isActive ? S.current.activateShield : S.current.shieldsInactive}',
-      child: Material(
-        color: kSurface,
+    return Material(
+      color: kSurface,
+      borderRadius: BorderRadius.circular(kRadius),
+      child: InkWell(
+        onTap: open,
+        excludeFromSemantics: true,
         borderRadius: BorderRadius.circular(kRadius),
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            widget.onTap();
-          },
-          borderRadius: BorderRadius.circular(kRadius),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(kRadius),
-              border: Border.all(
-                color: profile.isActive
-                    ? profile.color.withValues(alpha: 0.4)
-                    : kBorder,
-              ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(kRadius),
+            border: Border.all(
+              color: profile.isActive
+                  ? profile.color.withValues(alpha: 0.4)
+                  : kBorder,
             ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Icon
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: profile.isActive
-                            ? profile.color.withValues(alpha: 0.15)
-                            : kBorder,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        profile.profileIcon.icon,
-                        size: 24,
-                        color: profile.isActive
-                            ? profile.color
-                            : kTextSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-
-                    // Name + subtitle
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      container: true,
+                      button: true,
+                      label: '${profile.name}, $subtitle, $status',
+                      excludeSemantics: true,
+                      onTap: open,
+                      child: Row(
                         children: [
-                          Text(
-                            profile.name,
-                            style: TextStyle(
-                              color: kTextPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: profile.isActive
+                                  ? profile.color.withValues(alpha: 0.15)
+                                  : kBorder,
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            profile.subtitle,
-                            style: TextStyle(
-                              color: kTextSecondary,
-                              fontSize: 12,
+                            child: Icon(
+                              profile.profileIcon.icon,
+                              size: 24,
+                              color: profile.isActive
+                                  ? profile.color
+                                  : kTextSecondary,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  profile.name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: kTextPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  subtitle,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: kTextSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (profile.isActive) ...[
+                            const SizedBox(width: 8),
+                            Tooltip(
+                              message: reason,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: (blocking ? profile.color : kSuccess)
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  blocking
+                                      ? Icons.lock_rounded
+                                      : Icons.lock_open_rounded,
+                                  size: 18,
+                                  color: blocking ? profile.color : kSuccess,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-
-                    // Lock indicator
-                    if (profile.isActive)
-                      Tooltip(
-                        message: profile.requirementReason,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: (unlocked ? kSuccess : profile.color)
-                                .withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
+                  ),
+                  const SizedBox(width: 4),
+                  AppSwitch(
+                    value: profile.isActive,
+                    activeColor: profile.color,
+                    semanticLabel:
+                        '${profile.isActive ? s.deactivateShield : s.activateShield}, ${profile.name}',
+                    onChanged: (_) => onToggle(),
+                  ),
+                ],
+              ),
+              if (!profile.isManualOnly) ...[
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ExcludeSemantics(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (profile.scheduleEnabled)
+                          ModeChip(
+                            icon: Icons.schedule_rounded,
+                            label: s.scheduleTitle,
+                            color: profile.color,
+                            isActive: profile.isActive,
                           ),
-                          child: Icon(
-                            unlocked
-                                ? Icons.lock_open_rounded
-                                : Icons.lock_rounded,
-                            size: 18,
-                            color: unlocked ? kSuccess : profile.color,
+                        if (profile.usageLimitEnabled)
+                          ModeChip(
+                            icon: Icons.timer_rounded,
+                            label: s.usageLimitTitle,
+                            color: profile.color,
+                            isActive: profile.isActive,
                           ),
-                        ),
-                      ),
-                    if (profile.isActive) const SizedBox(width: 8),
-
-                    // Toggle
-                    Semantics(
-                      label: profile.isActive
-                          ? S.current.deactivateShield
-                          : S.current.activateShield,
-                      button: true,
-                      toggled: profile.isActive,
-                      child: GestureDetector(
-                        onTap: widget.onToggle,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          width: 52,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(15),
-                            color: profile.isActive ? profile.color : kBorder,
+                        if (profile.taskModeEnabled)
+                          ModeChip(
+                            icon: Icons.checklist_rounded,
+                            label: s.taskModeTitle,
+                            color: profile.color,
+                            isActive: profile.isActive,
                           ),
-                          child: AnimatedAlign(
-                            duration: const Duration(milliseconds: 250),
-                            alignment: profile.isActive
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Container(
-                              width: 24,
-                              height: 24,
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              decoration: BoxDecoration(
-                                color: kTextPrimary,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-
-                // Mode chips
-                if (profile.scheduleEnabled ||
-                    profile.usageLimitEnabled ||
-                    profile.taskModeEnabled) ...[
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      if (profile.scheduleEnabled)
-                        ModeChip(
-                          icon: Icons.schedule_rounded,
-                          label: S.current.scheduleTitle,
-                          color: profile.color,
-                          isActive: profile.isActive,
-                        ),
-                      if (profile.usageLimitEnabled)
-                        ModeChip(
-                          icon: Icons.timer_rounded,
-                          label: S.current.usageLimitTitle,
-                          color: profile.color,
-                          isActive: profile.isActive,
-                        ),
-                      if (profile.taskModeEnabled)
-                        ModeChip(
-                          icon: Icons.checklist_rounded,
-                          label: S.current.taskModeTitle,
-                          color: profile.color,
-                          isActive: profile.isActive,
-                        ),
-                    ],
+              ],
+              if (profile.taskModeEnabled && profile.tasks.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Divider(color: kBorder, height: 1),
+                ),
+                const SizedBox(height: 4),
+                for (final task in profile.tasks)
+                  _CardTaskRow(
+                    task: task,
+                    color: profile.color,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      ref
+                          .read(profilesProvider.notifier)
+                          .toggleTask(profile.id, task.id);
+                    },
                   ),
-                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-                // Inline task list
-                if (profile.taskModeEnabled && profile.tasks.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Divider(color: kBorder, height: 1),
-                  const SizedBox(height: 8),
-                  ...profile.tasks.map(
-                    (task) => Semantics(
-                      label:
-                          '${task.title}, ${task.isDone ? S.current.allTasksDoneNote : S.current.tasks}',
-                      checked: task.isDone,
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          ref
-                              .read(profilesProvider.notifier)
-                              .toggleTask(profile.id, task.id);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              Icon(
-                                task.isDone
-                                    ? Icons.check_circle_rounded
-                                    : Icons.radio_button_unchecked_rounded,
-                                size: 18,
-                                color: task.isDone
-                                    ? profile.color
-                                    : kTextSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  task.title,
-                                  style: TextStyle(
-                                    color: task.isDone
-                                        ? kTextSecondary
-                                        : kTextPrimary,
-                                    fontSize: 13,
-                                    decoration: task.isDone
-                                        ? TextDecoration.lineThrough
-                                        : null,
-                                    decorationColor: kTextSecondary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+class _CardTaskRow extends StatelessWidget {
+  const _CardTaskRow({
+    required this.task,
+    required this.color,
+    required this.onTap,
+  });
+
+  final BlockerTask task;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return MergeSemantics(
+      child: Semantics(
+        checked: task.isDone,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 44),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    task.isDone
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    size: 20,
+                    color: task.isDone ? color : kTextSecondary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      task.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: task.isDone ? kTextSecondary : kTextPrimary,
+                        fontSize: 13,
+                        decoration: task.isDone
+                            ? TextDecoration.lineThrough
+                            : null,
+                        decorationColor: kTextSecondary,
                       ),
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
           ),
         ),

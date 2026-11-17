@@ -2,30 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/theme/design_tokens.dart';
 
+/// Headline of the dashboard: how many profiles are active right now.
 class SummaryCard extends StatelessWidget {
-  final int totalProfiles;
-  final int activeCount;
   const SummaryCard({
     super.key,
     required this.totalProfiles,
     required this.activeCount,
   });
 
+  final int totalProfiles;
+  final int activeCount;
+
   @override
   Widget build(BuildContext context) {
     final allActive = totalProfiles > 0 && activeCount == totalProfiles;
     final anyActive = activeCount > 0;
 
-    final statusLabel = anyActive
+    final title = anyActive
         ? allActive
               ? S.current.allShieldsActive
               : S.current.someShieldsActive(activeCount, totalProfiles)
         : totalProfiles == 0
         ? S.current.noProfiles
         : S.current.shieldsInactive;
+    final subtitle = anyActive
+        ? S.current.blockingDistractingApps
+        : totalProfiles == 0
+        ? S.current.createProfileToStart
+        : S.current.noProfilesAreActive;
 
-    return Semantics(
-      label: statusLabel,
+    return MergeSemantics(
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(kRadius),
@@ -62,7 +68,7 @@ class SummaryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    statusLabel,
+                    title,
                     style: TextStyle(
                       color: kTextPrimary,
                       fontSize: 18,
@@ -71,17 +77,14 @@ class SummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    anyActive
-                        ? S.current.blockingDistractingApps
-                        : totalProfiles == 0
-                        ? S.current.createProfileToStart
-                        : S.current.noProfilesAreActive,
+                    subtitle,
                     style: TextStyle(color: kTextSecondary, fontSize: 13),
                   ),
                 ],
               ),
             ),
-            if (anyActive)
+            if (anyActive) ...[
+              const SizedBox(width: 12),
               Container(
                 width: 12,
                 height: 12,
@@ -97,6 +100,7 @@ class SummaryCard extends StatelessWidget {
                   ],
                 ),
               ),
+            ],
           ],
         ),
       ),

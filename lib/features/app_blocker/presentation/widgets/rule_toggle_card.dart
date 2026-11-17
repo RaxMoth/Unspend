@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:unspend/core/theme/design_tokens.dart';
+import 'package:unspend/core/widgets/app_switch.dart';
 
+/// One block rule (schedule, usage limit, task mode) with its on/off switch.
+/// The whole card toggles the rule; while [locked] it only shows its state.
 class RuleToggleCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-  final bool enabled;
-  final Color accent;
-  final bool locked;
-  final ValueChanged<bool> onToggle;
-
   const RuleToggleCard({
     super.key,
     required this.icon,
@@ -22,24 +17,35 @@ class RuleToggleCard extends StatelessWidget {
     required this.onToggle,
   });
 
+  final IconData icon;
+  final String title;
+  final String description;
+  final bool enabled;
+  final Color accent;
+  final bool locked;
+  final ValueChanged<bool> onToggle;
+
+  void _toggle() {
+    HapticFeedback.selectionClick();
+    onToggle(!enabled);
+  }
+
   @override
   Widget build(BuildContext context) {
-    void handleTap() {
-      if (locked) return;
-      HapticFeedback.selectionClick();
-      onToggle(!enabled);
-    }
-
     return Semantics(
-      label: '$title, ${enabled ? "enabled" : "disabled"}',
+      container: true,
       toggled: enabled,
+      enabled: !locked,
+      label: '$title. $description',
+      excludeSemantics: true,
+      onTap: locked ? null : _toggle,
       child: Opacity(
-        opacity: locked ? 0.6 : 1.0,
+        opacity: locked ? 0.6 : 1,
         child: Material(
           color: enabled ? accent.withValues(alpha: 0.08) : kSurface,
           borderRadius: BorderRadius.circular(kRadius),
           child: InkWell(
-            onTap: locked ? null : handleTap,
+            onTap: locked ? null : _toggle,
             borderRadius: BorderRadius.circular(kRadius),
             child: Container(
               decoration: BoxDecoration(
@@ -48,7 +54,7 @@ class RuleToggleCard extends StatelessWidget {
                   color: enabled ? accent.withValues(alpha: 0.4) : kBorder,
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
               child: Row(
                 children: [
                   Icon(
@@ -63,12 +69,16 @@ class RuleToggleCard extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                color: enabled ? kTextPrimary : kTextSecondary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
+                            Flexible(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  color: enabled
+                                      ? kTextPrimary
+                                      : kTextSecondary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                             if (locked) ...[
@@ -81,40 +91,19 @@ class RuleToggleCard extends StatelessWidget {
                             ],
                           ],
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           description,
-                          style: TextStyle(color: kTextSecondary, fontSize: 11),
+                          style: TextStyle(color: kTextSecondary, fontSize: 12),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: locked ? null : () => onToggle(!enabled),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      width: 48,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: enabled ? accent : kBorder,
-                      ),
-                      child: AnimatedAlign(
-                        duration: const Duration(milliseconds: 250),
-                        alignment: enabled
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Container(
-                          width: 22,
-                          height: 22,
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          decoration: BoxDecoration(
-                            color: kTextPrimary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ),
+                  const SizedBox(width: 4),
+                  AppSwitch(
+                    value: enabled,
+                    activeColor: accent,
+                    onChanged: locked ? null : (_) => _toggle(),
                   ),
                 ],
               ),

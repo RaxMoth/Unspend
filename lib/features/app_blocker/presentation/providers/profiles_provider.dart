@@ -1,551 +1,422 @@
-import 'dart:convert';
 import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../../../core/security/pin_hasher.dart';
+
+import '../../../../core/providers.dart';
+import '../../../../core/time/day_key.dart';
+import '../../data/datasources/method_channel_screen_time_datasource.dart';
 import '../../data/datasources/screen_time_datasource.dart';
+import '../../data/repositories/pin_repository.dart';
+import '../../data/repositories/profiles_repository.dart';
 import '../../domain/entities/blocker_profile.dart';
+import 'authorization_provider.dart';
+import 'device_mode_provider.dart';
 import 'shield_activity_provider.dart';
+import 'uninstall_protection_provider.dart';
 
-// ── Persistence keys ───────────────────────────────────────────────────────
-const _kProfilesKey = 'blocker_profiles_v3';
-const _kSchemaVersionKey = 'blocker_schema_version';
-const _kCurrentSchemaVersion = 3;
-const _kPinHashKey = 'blocker_pin_hash';
-const _kPinSaltKey = 'blocker_pin_salt';
-
-// Legacy keys for migration
-const _kLegacyProfilesV2 = 'blocker_profiles_v2';
-const _kLegacyProfilesV1 = 'blocker_profiles';
-
-// ── Providers ──────────────────────────────────────────────────────────────
-
-final screenTimeDatasourceProvider = Provider<ScreenTimeDatasource>(
-  (_) => ScreenTimeDatasource(),
-);
-
-/// Manages the full list of [BlockerProfile]s.
+/// The list of [BlockerProfile]s and every action on them.
 final profilesProvider =
     AsyncNotifierProvider<ProfilesNotifier, List<BlockerProfile>>(
       ProfilesNotifier.new,
     );
 
-// ── Notifier ───────────────────────────────────────────────────────────────
+/// What iOS last reported for each active profile, by profile id: whether
+/// its apps are blocked right now and whether today's usage limit is used up.
+/// Refreshed on every activation, task change and sync.
+final shieldStatusProvider = StateProvider<Map<String, ShieldStatus>>(
+  (ref) => const {},
+);
 
+/// Owns the profile list.
+///
+/// The OS enforces the blocks; this class keeps the stored profiles and the
+/// OS in step. A profile only changes to active or inactive after the OS
+/// confirmed the change, so the UI never claims a block that is not there.
+///
+/// All mutations run one after another (see [_serial]): each one reads the
+/// current list, changes it and writes it back, and two of them interleaving
+/// would lose an update.
 class ProfilesNotifier extends AsyncNotifier<List<BlockerProfile>> {
-  late ScreenTimeDatasource _ds;
+  Future<void> _queue = Future.value();
+
+  ScreenTimeDatasource get _screenTime =>
+      ref.read(screenTimeDatasourceProvider);
+  ProfilesRepository get _repository => ref.read(profilesRepositoryProvider);
+  DateTime _now() => ref.read(clockProvider)();
 
   @override
   Future<List<BlockerProfile>> build() async {
-    _ds = ref.read(screenTimeDatasourceProvider);
-    try {
-      await _ds.requestAuthorization();
-    } catch (_) {
-      // Permission not yet granted – continue with saved profiles anyway.
+    final stored = await _repository.load();
+    // An active profile always carries its activation time. One without it
+    // is left over from an interrupted write; the next sync lifts whatever
+    // block the OS may still hold for it.
+    final profiles = [
+      for (final profile in stored)
+        if (profile.isActive && profile.shieldActivatedAt == null)
+          profile.copyWith(isActive: false)
+        else
+          profile,
+    ];
+    if (profiles.any((p) => !stored.contains(p))) {
+      await _repository.save(profiles);
     }
-    final profiles = await _loadProfiles();
-    // Recover from app crash / reboot: mark any "active" profile that has
-    // no valid shieldActivatedAt as inactive so the UI stays consistent.
-    bool needsPersist = false;
-    final recovered = profiles.map((p) {
-      if (p.isActive && p.shieldActivatedAt == null) {
-        needsPersist = true;
-        return p.copyWith(isActive: false);
-      }
-      return p;
-    }).toList();
-    if (needsPersist) {
-      await _persist(recovered);
-    }
-    return recovered;
+    return profiles;
   }
 
-  // ── CRUD ───────────────────────────────────────────────────────────────
+  // ── Plumbing ───────────────────────────────────────────────────────────
 
-  /// Create a new profile and return its ID.
-  Future<String> createProfile({required String name}) async {
-    final id =
-        '${DateTime.now().millisecondsSinceEpoch}_${Random.secure().nextInt(999999).toString().padLeft(6, '0')}';
+  List<BlockerProfile> get _profiles => state.valueOrNull ?? const [];
+
+  BlockerProfile? _find(String id) =>
+      _profiles.where((p) => p.id == id).firstOrNull;
+
+  /// Runs [action] after every earlier mutation has finished, and only once
+  /// the stored profiles are loaded.
+  Future<T> _serial<T>(Future<T> Function() action) {
+    final result = _queue.then((_) async {
+      await future;
+      return action();
+    });
+    _queue = result.then<void>((_) {}, onError: (_) {});
+    return result;
+  }
+
+  Future<void> _write(List<BlockerProfile> profiles) async {
+    state = AsyncData(profiles);
+    try {
+      await _repository.save(profiles);
+    } catch (e) {
+      debugPrint('[ProfilesNotifier] Saving profiles failed: $e');
+    }
+  }
+
+  Future<void> _replace(BlockerProfile profile) => _write([
+    for (final p in _profiles)
+      if (p.id == profile.id) profile else p,
+  ]);
+
+  void _setStatus(String id, ShieldStatus? status) {
+    final statuses = {...ref.read(shieldStatusProvider)};
+    if (status == null) {
+      statuses.remove(id);
+    } else {
+      statuses[id] = status;
+    }
+    ref.read(shieldStatusProvider.notifier).state = statuses;
+  }
+
+  String _newId() {
+    final random = Random.secure().nextInt(1000000).toString().padLeft(6, '0');
+    return '${_now().microsecondsSinceEpoch}_$random';
+  }
+
+  /// [profile] switched off, with the minutes of the session that just ended
+  /// added to its total. A clock that moved backwards adds nothing.
+  BlockerProfile _deactivated(BlockerProfile profile) {
+    final activatedAt = DateTime.tryParse(profile.shieldActivatedAt ?? '');
+    final minutes = activatedAt == null
+        ? 0
+        : max(0, _now().difference(activatedAt).inMinutes);
+    return profile.copyWith(
+      isActive: false,
+      shieldActivatedAt: null,
+      totalSavedMinutes: profile.totalSavedMinutes + minutes,
+    );
+  }
+
+  // ── Create, edit, delete ───────────────────────────────────────────────
+
+  /// Creates a profile and returns its id.
+  Future<String> createProfile({required String name}) => _serial(() async {
+    const palette = ProfileColor.palette;
     final profile = BlockerProfile(
-      id: id,
+      id: _newId(),
       name: name,
-      colorValue: ProfileColor
-          .palette[_profiles.length % ProfileColor.palette.length]
-          .color
-          .toARGB32(),
+      colorValue: palette[_profiles.length % palette.length].color.toARGB32(),
     );
-    final updated = [..._profiles, profile];
-    state = AsyncData(updated);
-    await _persist(updated);
-    return id;
-  }
+    await _write([..._profiles, profile]);
+    return profile.id;
+  });
 
-  /// Update any field of a profile by [id].
-  /// Silently ignores setting changes if the profile is active.
-  Future<void> updateProfile(BlockerProfile profile) async {
-    final idx = _profiles.indexWhere((p) => p.id == profile.id);
-    if (idx == -1) return;
-    final current = _profiles[idx];
-    // If the profile is active, only allow name and cosmetic changes.
-    // Block rule changes are locked while shield is on.
-    final effective = current.isActive
-        ? current.copyWith(
-            name: profile.name,
-            colorValue: profile.colorValue,
-            iconLabel: profile.iconLabel,
-          )
-        : profile;
-    final list = _profiles
-        .map((p) => p.id == effective.id ? effective : p)
-        .toList();
-    state = AsyncData(list);
-    await _persist(list);
-  }
-
-  /// Delete a profile. Removes its shield if active.
-  Future<void> deleteProfile(String id) async {
-    final profile = _profiles.where((p) => p.id == id).firstOrNull;
-    if (profile == null) return;
-    if (profile.isActive) {
-      try {
-        await _ds.removeShield(profileId: id);
-      } catch (e) {
-        debugPrint('[ProfilesNotifier] Shield removal on delete failed: $e');
-      }
-    }
-    final list = _profiles.where((p) => p.id != id).toList();
-    state = AsyncData(list);
-    await _persist(list);
-  }
-
-  // ── Actions on individual profiles ─────────────────────────────────────
-
-  Future<void> pickAppsForProfile(String id) async {
-    final count = await _ds.showAppPicker(profileId: id);
-    if (count == 0) return; // User cancelled
-    final list = _profiles.map((p) {
-      if (p.id != id) return p;
-      return p.copyWith(hasAppsSelected: true, appCount: count);
-    }).toList();
-    state = AsyncData(list);
-    await _persist(list);
-  }
-
-  Future<void> activateProfile(String id) async {
-    final profile = _profiles.where((p) => p.id == id).firstOrNull;
-    if (profile == null || !profile.hasAppsSelected) return;
-
-    try {
-      // Clear THIS profile's prior monitoring sessions (if any). Don't
-      // touch other profiles — they keep their schedules and limits.
-      await _ds.stopMonitoring(profileId: profile.id);
-
-      // Apply the shield NOW only if the current rule state requires it:
-      //   • Manual only           → always block until user deactivates
-      //   • Schedule + in-window  → block right now; FocusMonitor will lift
-      //                             the shield when the window ends
-      //   • Task mode + pending   → block until tasks are completed
-      //   • Usage limit only      → start unblocked; the OS-side threshold
-      //                             event will engage the shield once the
-      //                             user has actually used the apps for the
-      //                             configured duration
-      final shouldShieldNow =
-          profile.isManualOnly ||
-          (profile.scheduleEnabled && profile.isInsideScheduleWindow) ||
-          (profile.taskModeEnabled && !profile.allTasksDone);
-
-      // Apply the immediate shield (or cache pointers) FIRST so the user
-      // sees the visual state change without waiting on the monitoring
-      // registration. Schedule + usage-limit registration can race in
-      // parallel — they touch different DeviceActivityName slots.
-      final shieldCall = shouldShieldNow
-          ? _ds.applyShield(profileId: profile.id, profileName: profile.name)
-          : _ds.cacheActiveProfile(
-              profileId: profile.id,
-              profileName: profile.name,
-            );
-
-      final monitorCalls = <Future<bool>>[];
-      if (profile.scheduleEnabled &&
-          profile.scheduleStartHour != null &&
-          profile.scheduleEndHour != null) {
-        monitorCalls.add(
-          _ds.startSchedule(
-            profileId: profile.id,
-            startHour: profile.scheduleStartHour!,
-            startMinute: profile.scheduleStartMinute ?? 0,
-            endHour: profile.scheduleEndHour!,
-            endMinute: profile.scheduleEndMinute ?? 0,
-          ),
-        );
-      }
-      if (profile.usageLimitEnabled && profile.usageLimitMinutes != null) {
-        monitorCalls.add(
-          _ds.startUsageLimit(
-            profileId: profile.id,
-            minutes: profile.usageLimitMinutes!,
-          ),
-        );
-      }
-
-      await Future.wait<Object>([shieldCall, ...monitorCalls]);
-    } catch (e) {
-      // Roll back — clear this profile's partial shield + monitoring.
-      try {
-        await _ds.removeShield(profileId: profile.id);
-      } catch (_) {}
-      // Re-throw so the UI can react (e.g. show a snackbar).
-      rethrow;
-    }
-
-    // 4) Task mode: reset tasks to undone so the user must complete them.
-    //    Also record today's date for the daily-reset check.
-    BlockerProfile activatedProfile = profile;
-    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    if (profile.taskModeEnabled && profile.tasks.isNotEmpty) {
-      activatedProfile = profile.copyWith(
-        tasks: profile.tasks.map((t) => t.copyWith(isDone: false)).toList(),
-        tasksLastResetDate: todayStr,
-      );
-    } else {
-      activatedProfile = profile.copyWith(tasksLastResetDate: todayStr);
-    }
-
-    final list = _profiles.map((p) {
-      if (p.id != id) return p;
-      return activatedProfile.copyWith(
-        isActive: true,
-        shieldActivatedAt: DateTime.now().toIso8601String(),
-      );
-    }).toList();
-    state = AsyncData(list);
-    await _persist(list);
-
-    // Record peak active-shield count for today (drives the contribution grid).
-    final activeCount = list.where((p) => p.isActive).length;
-    await ref.read(shieldActivityProvider.notifier).record(activeCount);
-  }
-
-  Future<void> deactivateProfile(String id) async {
-    try {
-      // Per-profile shield + monitoring — leaves other profiles alone.
-      await _ds.removeShield(profileId: id);
-    } catch (e) {
-      debugPrint('[ProfilesNotifier] Shield removal failed: $e');
-      // Continue — still mark profile inactive so user isn't stuck.
-    }
-    final now = DateTime.now();
-    final list = _profiles.map((p) {
-      if (p.id != id) return p;
-      // Accumulate saved minutes from this session — clamp to ≥0 so a
-      // backwards clock change can't subtract from totalSavedMinutes.
-      int sessionMinutes = 0;
-      if (p.shieldActivatedAt != null) {
-        final activated = DateTime.tryParse(p.shieldActivatedAt!);
-        if (activated != null) {
-          sessionMinutes = now
-              .difference(activated)
-              .inMinutes
-              .clamp(0, 1 << 30);
-        }
-      }
-      return p.copyWith(
-        isActive: false,
-        shieldActivatedAt: null,
-        totalSavedMinutes: p.totalSavedMinutes + sessionMinutes,
-      );
-    }).toList();
-    state = AsyncData(list);
-    await _persist(list);
-  }
-
-  /// Quick toggle from the dashboard.
-  Future<void> toggleProfile(String id) async {
-    final profile = _profiles.where((p) => p.id == id).firstOrNull;
-    if (profile == null) return;
-    if (profile.isActive) {
-      await deactivateProfile(id);
-    } else {
-      await activateProfile(id);
-    }
-  }
-
-  // ── Task management ────────────────────────────────────────────────
-
-  /// Add a new task to a profile. Ignored when the profile is active.
-  Future<void> addTask(String profileId, String title) async {
-    final profile = _profiles.where((p) => p.id == profileId).firstOrNull;
-    if (profile == null || profile.isActive) return;
-    final taskId =
-        '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(999999).toString().padLeft(6, '0')}';
-    final list = _profiles.map((p) {
-      if (p.id != profileId) return p;
-      return p.copyWith(
-        tasks: [
-          ...p.tasks,
-          BlockerTask(id: taskId, title: title),
-        ],
-      );
-    }).toList();
-    state = AsyncData(list);
-    await _persist(list);
-  }
-
-  /// Remove a task from a profile. Ignored when the profile is active.
-  Future<void> removeTask(String profileId, String taskId) async {
-    final profile = _profiles.where((p) => p.id == profileId).firstOrNull;
-    if (profile == null || profile.isActive) return;
-    final list = _profiles.map((p) {
-      if (p.id != profileId) return p;
-      return p.copyWith(tasks: p.tasks.where((t) => t.id != taskId).toList());
-    }).toList();
-    state = AsyncData(list);
-    await _persist(list);
-  }
-
-  /// Toggle a task's done state.
+  /// Saves the user-editable settings of [edited].
   ///
-  /// Daily reset: if the day changed since last reset, reset all tasks first.
-  /// Auto-shield: when all tasks are done the shield is removed instantly;
-  /// when a task is unchecked while the profile is active the shield is
-  /// re-applied.
-  Future<void> toggleTask(String profileId, String taskId) async {
-    var profile = _profiles.where((p) => p.id == profileId).firstOrNull;
-    if (profile == null) return;
-
-    // Daily reset check.
-    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    if (profile.tasksLastResetDate != null &&
-        profile.tasksLastResetDate != todayStr) {
-      profile = profile.copyWith(
-        tasks: profile.tasks.map((t) => t.copyWith(isDone: false)).toList(),
-        tasksLastResetDate: todayStr,
-      );
-    }
-
-    final updatedTasks = profile.tasks
-        .map((t) => t.id == taskId ? t.copyWith(isDone: !t.isDone) : t)
-        .toList();
-    final updatedProfile = profile.copyWith(tasks: updatedTasks);
-
-    final list = _profiles.map((p) {
-      if (p.id != profileId) return p;
-      return updatedProfile;
-    }).toList();
-    state = AsyncData(list);
-    await _persist(list);
-
-    // Auto-shield: instantly apply or remove based on requirements.
-    if (updatedProfile.isActive && updatedProfile.taskModeEnabled) {
-      try {
-        if (updatedProfile.allTasksDone) {
-          await _ds.removeShield(profileId: updatedProfile.id);
-        } else {
-          await _ds.applyShield(
-            profileId: updatedProfile.id,
-            profileName: updatedProfile.name,
-          );
-        }
-      } catch (e) {
-        debugPrint('[ProfilesNotifier] Auto-shield toggle failed: $e');
-      }
-    }
-  }
-
-  // ── PIN management (Keychain via flutter_secure_storage) ────────────────
-
-  static const _secureStorage = FlutterSecureStorage(
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
-
-  /// Migrate PIN from SharedPreferences → Keychain (one-time).
-  Future<void> _migratePinToKeychain() async {
-    final prefs = await SharedPreferences.getInstance();
-    final legacySalt = prefs.getString(_kPinSaltKey);
-    final legacyHash = prefs.getString(_kPinHashKey);
-    if (legacySalt != null && legacyHash != null) {
-      // Already stored in insecure prefs — move to Keychain.
-      final keychainHash = await _secureStorage.read(key: _kPinHashKey);
-      if (keychainHash == null) {
-        await _secureStorage.write(key: _kPinSaltKey, value: legacySalt);
-        await _secureStorage.write(key: _kPinHashKey, value: legacyHash);
-      }
-      // Remove insecure copies.
-      await prefs.remove(_kPinSaltKey);
-      await prefs.remove(_kPinHashKey);
-    }
-  }
-
-  Future<bool> savePin(String pin) async {
-    try {
-      final salt = PinHasher.generateSalt();
-      final hash = PinHasher.hash(salt, pin);
-      await _secureStorage.write(key: _kPinSaltKey, value: salt);
-      await _secureStorage.write(key: _kPinHashKey, value: hash);
-      return true;
-    } catch (e) {
-      debugPrint('[ProfilesNotifier] savePin failed: $e');
-      return false;
-    }
-  }
-
-  Future<bool> verifyPin(String pin) async {
-    try {
-      await _migratePinToKeychain();
-      final salt = await _secureStorage.read(key: _kPinSaltKey);
-      final storedHash = await _secureStorage.read(key: _kPinHashKey);
-      if (salt == null || storedHash == null) return false;
-      final hash = PinHasher.hash(salt, pin);
-      return hash == storedHash;
-    } catch (e) {
-      debugPrint('[ProfilesNotifier] verifyPin failed: $e');
-      return false;
-    }
-  }
-
-  /// Re-checks the native shield status for each marked-active profile and
-  /// deactivates any whose OS shield has been cleared without Dart knowing
-  /// (e.g. a schedule's end-of-window fired in the extension).
-  Future<void> refreshShieldState() async {
-    try {
-      final activeProfiles = _profiles.where((p) => p.isActive).toList();
-      if (activeProfiles.isEmpty) return;
-
-      // Check each active profile's shield in parallel.
-      final shieldStates = await Future.wait(
-        activeProfiles.map((p) => _ds.isShieldActive(profileId: p.id)),
-      );
-      final stillActive = {
-        for (var i = 0; i < activeProfiles.length; i++)
-          activeProfiles[i].id: shieldStates[i],
-      };
-      final hasStale = stillActive.values.any((v) => v == false);
-      if (!hasStale) return;
-
-      final now = DateTime.now();
-      final list = _profiles.map((p) {
-        if (!p.isActive) return p;
-        if (stillActive[p.id] != false) return p;
-        int sessionMinutes = 0;
-        if (p.shieldActivatedAt != null) {
-          final activated = DateTime.tryParse(p.shieldActivatedAt!);
-          if (activated != null) {
-            sessionMinutes = now
-                .difference(activated)
-                .inMinutes
-                .clamp(0, 1 << 30);
-          }
-        }
-        return p.copyWith(
-          isActive: false,
-          shieldActivatedAt: null,
-          totalSavedMinutes: p.totalSavedMinutes + sessionMinutes,
-        );
-      }).toList();
-      state = AsyncData(list);
-      await _persist(list);
-    } catch (e) {
-      debugPrint('[ProfilesNotifier] refreshShieldState failed: $e');
-    }
-  }
-
-  /// Delete all profiles, PIN, and preferences. Removes every active shield.
-  Future<void> deleteAllData() async {
-    // Best-effort clear of every active profile's shield.
-    for (final p in _profiles.where((p) => p.isActive)) {
-      try {
-        await _ds.removeShield(profileId: p.id);
-      } catch (_) {}
-    }
-    try {
-      await _ds.stopMonitoring();
-    } catch (_) {}
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    await _secureStorage.deleteAll();
-    state = const AsyncData([]);
-  }
-
-  Future<bool> hasPinSet() async {
-    try {
-      await _migratePinToKeychain();
-      final hash = await _secureStorage.read(key: _kPinHashKey);
-      return hash != null;
-    } catch (e) {
-      debugPrint('[ProfilesNotifier] hasPinSet failed: $e');
-      return false;
-    }
-  }
-
-  // ── Persistence helpers ────────────────────────────────────────────────
-
-  /// Safely access the current profile list. Returns empty list if loading
-  /// or in an error state (avoids [StateError] from `requireValue`).
-  List<BlockerProfile> get _profiles => state.valueOrNull ?? [];
-
-  Future<List<BlockerProfile>> _loadProfiles() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // ── Migration: move data from older keys to current key ──────────
-      await _migrateIfNeeded(prefs);
-
-      final raw = prefs.getString(_kProfilesKey);
-      if (raw == null) return [];
-      final list = (json.decode(raw) as List)
-          .map((e) => BlockerProfile.fromJson(e as Map<String, dynamic>))
-          .toList();
-      return list;
-    } catch (e) {
-      // Corrupt data – start fresh rather than crash.
-      debugPrint('[ProfilesNotifier] Failed to load profiles: $e');
-      return [];
-    }
-  }
-
-  /// Migrates profile data from legacy storage keys to the current version.
-  Future<void> _migrateIfNeeded(SharedPreferences prefs) async {
-    final version = prefs.getInt(_kSchemaVersionKey) ?? 0;
-    if (version >= _kCurrentSchemaVersion) return;
-
-    // v0/v1 → v3: read from legacy key and write to new key.
-    if (version < 3) {
-      final legacy =
-          prefs.getString(_kProfilesKey) ??
-          prefs.getString(_kLegacyProfilesV2) ??
-          prefs.getString(_kLegacyProfilesV1);
-      if (legacy != null) {
-        // Re-parse through fromJson which fills in defaults for new fields.
-        try {
-          final list = (json.decode(legacy) as List)
-              .map((e) => BlockerProfile.fromJson(e as Map<String, dynamic>))
-              .toList();
-          final encoded = json.encode(list.map((p) => p.toJson()).toList());
-          await prefs.setString(_kProfilesKey, encoded);
-        } catch (e) {
-          debugPrint('[ProfilesNotifier] Migration parse failed: $e');
-        }
-        // Clean up legacy keys.
-        await prefs.remove(_kLegacyProfilesV1);
-        await prefs.remove(_kLegacyProfilesV2);
-      }
-    }
-
-    await prefs.setInt(_kSchemaVersionKey, _kCurrentSchemaVersion);
-    debugPrint(
-      '[ProfilesNotifier] Migrated to schema v$_kCurrentSchemaVersion',
+  /// While the profile is active only its name, colour and icon can change:
+  /// loosening the rules of a running block would be a way around it.
+  /// Everything the app itself maintains (active state, tasks, selected apps,
+  /// statistics) is always taken from the stored profile, never from
+  /// [edited], so a stale copy held by a screen cannot overwrite it.
+  Future<void> updateProfile(BlockerProfile edited) => _serial(() async {
+    final current = _find(edited.id);
+    if (current == null) return;
+    final cosmetic = current.copyWith(
+      name: edited.name,
+      colorValue: edited.colorValue,
+      iconLabel: edited.iconLabel,
     );
+    await _replace(
+      current.isActive
+          ? cosmetic
+          : cosmetic.copyWith(
+              scheduleEnabled: edited.scheduleEnabled,
+              scheduleStartHour: edited.scheduleStartHour,
+              scheduleStartMinute: edited.scheduleStartMinute,
+              scheduleEndHour: edited.scheduleEndHour,
+              scheduleEndMinute: edited.scheduleEndMinute,
+              usageLimitEnabled: edited.usageLimitEnabled,
+              usageLimitMinutes: edited.usageLimitMinutes,
+              taskModeEnabled: edited.taskModeEnabled,
+            ),
+    );
+  });
+
+  /// Deletes a profile together with its app selection. Returns false, and
+  /// changes nothing, while the profile is active: it has to be deactivated
+  /// (PIN and cooldown) first.
+  Future<bool> deleteProfile(String id) => _serial(() async {
+    final profile = _find(id);
+    if (profile == null || profile.isActive) return false;
+    try {
+      await _screenTime.deleteProfile(id);
+    } on ScreenTimeException catch (e) {
+      debugPrint('[ProfilesNotifier] Removing the app selection failed: $e');
+    }
+    await _write(_profiles.where((p) => p.id != id).toList());
+    _setStatus(id, null);
+    return true;
+  });
+
+  // ── Apps ───────────────────────────────────────────────────────────────
+
+  /// Lets the user choose the apps of an inactive profile, asking for Screen
+  /// Time access first if needed. Returns whether the selection changed.
+  ///
+  /// Throws [ScreenTimeException] with [ScreenTimeError.notAuthorized] when
+  /// access is refused.
+  Future<bool> pickAppsForProfile(
+    String id, {
+    required AppPickerLabels labels,
+  }) => _serial(() async {
+    final profile = _find(id);
+    if (profile == null || profile.isActive) return false;
+
+    final approved = await ref
+        .read(authorizationProvider.notifier)
+        .ensureApproved();
+    if (!approved) {
+      throw const ScreenTimeException(ScreenTimeError.notAuthorized);
+    }
+
+    final count = await _screenTime.pickApps(profileId: id, labels: labels);
+    if (count == null) return false;
+    // The picker was open for a while; apply the result to the latest copy.
+    final latest = _find(id);
+    if (latest == null) return false;
+    await _replace(
+      latest.copyWith(hasAppsSelected: count > 0, appCount: count),
+    );
+    return true;
+  });
+
+  // ── Activation ─────────────────────────────────────────────────────────
+
+  /// Starts blocking according to the profile's rules.
+  ///
+  /// Throws [ScreenTimeException] when the profile cannot be activated; the
+  /// profile then stays inactive.
+  Future<void> activateProfile(String id) => _serial(() => _activate(id));
+
+  /// Stops blocking. Throws [ScreenTimeException] when the OS refused; the
+  /// profile then stays active.
+  Future<void> deactivateProfile(String id) => _serial(() => _deactivate(id));
+
+  Future<void> _activate(String id) async {
+    final profile = _find(id);
+    if (profile == null || profile.isActive) return;
+    if (!profile.hasAppsSelected) {
+      throw const ScreenTimeException(ScreenTimeError.noSelection);
+    }
+    if (profile.scheduleEnabled && !profile.hasValidSchedule) {
+      throw const ScreenTimeException(ScreenTimeError.scheduleTooShort);
+    }
+    if (profile.usageLimitEnabled && profile.usageLimitMinutes == null) {
+      throw const ScreenTimeException(
+        ScreenTimeError.unknown,
+        'The usage limit has no duration',
+      );
+    }
+    if (profile.taskModeEnabled && profile.tasks.isEmpty) {
+      throw const ScreenTimeException(ScreenTimeError.taskModeNeedsTasks);
+    }
+
+    // Task mode starts with every task open: the point is to do them now.
+    final now = _now();
+    final prepared = profile.copyWith(
+      tasks: profile.taskModeEnabled
+          ? [for (final task in profile.tasks) task.copyWith(isDone: false)]
+          : profile.tasks,
+      tasksLastResetDate: dayKey(now),
+    );
+
+    final status = await _screenTime.activate(
+      ActivationRequest.fromProfile(prepared),
+    );
+
+    await _replace(
+      prepared.copyWith(
+        isActive: true,
+        shieldActivatedAt: now.toIso8601String(),
+      ),
+    );
+    _setStatus(id, status);
+    await ref
+        .read(shieldActivityProvider.notifier)
+        .record(_profiles.where((p) => p.isActive).length);
   }
 
-  Future<void> _persist(List<BlockerProfile> profiles) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final encoded = json.encode(profiles.map((p) => p.toJson()).toList());
-      await prefs.setString(_kProfilesKey, encoded);
-    } catch (e) {
-      debugPrint('[ProfilesNotifier] Failed to persist profiles: $e');
-    }
+  Future<void> _deactivate(String id) async {
+    final profile = _find(id);
+    if (profile == null || !profile.isActive) return;
+    await _screenTime.deactivate(id);
+    await _replace(_deactivated(profile));
+    _setStatus(id, null);
   }
+
+  // ── Tasks ──────────────────────────────────────────────────────────────
+
+  /// Adds a task. Ignored while the profile is active.
+  Future<void> addTask(String profileId, String title) => _serial(() async {
+    final profile = _find(profileId);
+    if (profile == null || profile.isActive) return;
+    await _replace(
+      profile.copyWith(
+        tasks: [
+          ...profile.tasks,
+          BlockerTask(id: _newId(), title: title),
+        ],
+      ),
+    );
+  });
+
+  /// Removes a task. Ignored while the profile is active.
+  Future<void> removeTask(String profileId, String taskId) => _serial(() async {
+    final profile = _find(profileId);
+    if (profile == null || profile.isActive) return;
+    await _replace(
+      profile.copyWith(
+        tasks: profile.tasks.where((t) => t.id != taskId).toList(),
+      ),
+    );
+  });
+
+  /// Ticks or unticks a task. On an active task-mode profile, finishing the
+  /// last task lifts the task block and reopening one puts it back.
+  Future<void> toggleTask(String profileId, String taskId) => _serial(() async {
+    await _resetTasksIfNewDay();
+    final profile = _find(profileId);
+    if (profile == null || !profile.tasks.any((t) => t.id == taskId)) return;
+
+    final updated = profile.copyWith(
+      tasks: [
+        for (final task in profile.tasks)
+          if (task.id == taskId) task.copyWith(isDone: !task.isDone) else task,
+      ],
+    );
+    await _replace(updated);
+
+    final enforced = updated.isActive && updated.taskModeEnabled;
+    if (!enforced || updated.allTasksDone == profile.allTasksDone) return;
+    try {
+      _setStatus(
+        profileId,
+        await _screenTime.setTasksDone(profileId, done: updated.allTasksDone),
+      );
+    } on ScreenTimeException catch (e) {
+      // The task state is saved; the next sync passes it on to the OS.
+      debugPrint('[ProfilesNotifier] Updating the task block failed: $e');
+    }
+  });
+
+  /// Tasks are daily: the first time the app looks at them on a new day,
+  /// yesterday's ticks are cleared. (For active profiles the OS re-locks at
+  /// midnight on its own; this keeps the list on screen in step.)
+  Future<void> _resetTasksIfNewDay() async {
+    final today = dayKey(_now());
+    if (_profiles.every((p) => p.tasksLastResetDate == today)) return;
+    await _write([
+      for (final profile in _profiles)
+        if (profile.tasksLastResetDate == today)
+          profile
+        else if (profile.tasksLastResetDate == null)
+          // Never stamped (created before daily resets): keep its ticks.
+          profile.copyWith(tasksLastResetDate: today)
+        else
+          profile.copyWith(
+            tasks: [for (final t in profile.tasks) t.copyWith(isDone: false)],
+            tasksLastResetDate: today,
+          ),
+    ]);
+  }
+
+  // ── Keeping in step with the OS ────────────────────────────────────────
+
+  /// Brings the app and the OS back in line. Called when the app starts,
+  /// returns to the foreground and passes midnight.
+  ///
+  /// Resets yesterday's tasks, has the OS re-evaluate every active profile
+  /// (lifting blocks of profiles the app no longer knows as active), marks
+  /// profiles the OS can no longer enforce as inactive and refreshes
+  /// [shieldStatusProvider].
+  Future<void> syncWithSystem() => _serial(() async {
+    await _resetTasksIfNewDay();
+    final active = _profiles.where((p) => p.isActive).toList();
+
+    final Map<String, ShieldStatus> statuses;
+    try {
+      statuses = await _screenTime.sync([
+        for (final profile in active)
+          ActiveProfileState(
+            profileId: profile.id,
+            tasksDone: profile.taskModeEnabled && profile.allTasksDone,
+          ),
+      ]);
+    } on ScreenTimeException catch (e) {
+      debugPrint('[ProfilesNotifier] Sync failed: $e');
+      return;
+    }
+
+    final lost = {
+      for (final profile in active)
+        if (!statuses.containsKey(profile.id)) profile.id,
+    };
+    if (lost.isNotEmpty) {
+      await _write([
+        for (final profile in _profiles)
+          if (lost.contains(profile.id)) _deactivated(profile) else profile,
+      ]);
+    }
+    ref.read(shieldStatusProvider.notifier).state = statuses;
+  });
+
+  // ── Reset ──────────────────────────────────────────────────────────────
+
+  /// Lifts every block and deletes all profiles, the PIN and all settings.
+  /// Screen Time access is given back too, so the app starts over as on a
+  /// first launch — including the choice of who uses the phone.
+  Future<void> deleteAllData() => _serial(() async {
+    try {
+      await _screenTime.resetAll([for (final p in _profiles) p.id]);
+      await _screenTime.revokeAuthorization();
+    } on ScreenTimeException catch (e) {
+      debugPrint('[ProfilesNotifier] Clearing the OS side failed: $e');
+    }
+    await ref.read(sharedPreferencesProvider).clear();
+    await ref.read(pinRepositoryProvider).clear();
+    state = const AsyncData([]);
+    ref.read(shieldStatusProvider.notifier).state = const {};
+    ref.invalidate(shieldActivityProvider);
+    ref.invalidate(deviceModeProvider);
+    ref.invalidate(uninstallProtectionProvider);
+    await ref.read(authorizationProvider.notifier).refresh();
+  });
 }

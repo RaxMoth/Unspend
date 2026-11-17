@@ -86,7 +86,7 @@ void main() {
       expect(restored.scheduleStartMinute, 0);
       expect(restored.scheduleEndHour, 0);
       expect(restored.scheduleEndMinute, 59);
-      expect(restored.usageLimitMinutes, 1440);
+      expect(restored.usageLimitMinutes, 1439);
       expect(restored.appCount, 0);
       expect(restored.totalSavedMinutes, 0);
     });
@@ -196,34 +196,169 @@ void main() {
       expect(done.pendingTaskCount, 0);
     });
 
-    test('areRequirementsMet: inactive profile is always met', () {
-      const p = BlockerProfile(id: 'p', name: 'P', isActive: false);
-      expect(p.areRequirementsMet, true);
-    });
-
-    test('areRequirementsMet: active manual-only never met', () {
-      const p = BlockerProfile(id: 'p', name: 'P', isActive: true);
-      expect(p.areRequirementsMet, false);
-    });
-
-    test('areRequirementsMet: task mode blocks until all tasks done', () {
-      const blocked = BlockerProfile(
+    test('doneTaskCount and hasPendingTasks follow the task list', () {
+      const p = BlockerProfile(
         id: 'p',
         name: 'P',
-        isActive: true,
         taskModeEnabled: true,
-        tasks: [BlockerTask(id: '1', title: 'x', isDone: false)],
+        tasks: [
+          BlockerTask(id: '1', title: 'x', isDone: true),
+          BlockerTask(id: '2', title: 'y'),
+        ],
       );
-      expect(blocked.areRequirementsMet, false);
+      expect(p.doneTaskCount, 1);
+      expect(p.hasPendingTasks, true);
 
-      const cleared = BlockerProfile(
-        id: 'p',
-        name: 'P',
-        isActive: true,
-        taskModeEnabled: true,
-        tasks: [BlockerTask(id: '1', title: 'x', isDone: true)],
+      // Task mode off: tasks never hold a block.
+      expect(p.copyWith(taskModeEnabled: false).hasPendingTasks, false);
+    });
+
+    test('schedule validity needs a window of at least 15 minutes', () {
+      BlockerProfile window(int sh, int sm, int eh, int em) => BlockerProfile(
+        id: 's',
+        name: 'S',
+        scheduleEnabled: true,
+        scheduleStartHour: sh,
+        scheduleStartMinute: sm,
+        scheduleEndHour: eh,
+        scheduleEndMinute: em,
       );
-      expect(cleared.areRequirementsMet, true);
+
+      expect(window(9, 0, 17, 0).hasValidSchedule, true);
+      expect(window(22, 0, 6, 0).hasValidSchedule, true);
+      expect(window(9, 0, 9, 0).hasValidSchedule, false);
+      expect(window(9, 0, 9, 10).hasValidSchedule, false);
+      expect(
+        const BlockerProfile(id: 'n', name: 'N').hasValidSchedule,
+        false,
+        reason: 'schedule rule is off',
+      );
+    });
+  });
+
+  group('isBlockingAt', () {
+    final noon = DateTime(2026, 11, 17, 12);
+    final evening = DateTime(2026, 11, 17, 20);
+
+    const base = BlockerProfile(id: 'p', name: 'P', isActive: true);
+    const pendingTask = [BlockerTask(id: '1', title: 'x')];
+    const doneTask = [BlockerTask(id: '1', title: 'x', isDone: true)];
+
+    BlockerProfile scheduled(BlockerProfile p) => p.copyWith(
+      scheduleEnabled: true,
+      scheduleStartHour: 9,
+      scheduleStartMinute: 0,
+      scheduleEndHour: 17,
+      scheduleEndMinute: 0,
+    );
+
+    test('an inactive profile never blocks', () {
+      const p = BlockerProfile(id: 'p', name: 'P');
+      expect(p.isBlockingAt(noon), false);
+      expect(scheduled(p).isBlockingAt(noon), false);
+    });
+
+    test('manual-only blocks for as long as it is active', () {
+      expect(base.isBlockingAt(noon), true);
+      expect(base.isBlockingAt(evening), true);
+    });
+
+    test('schedule blocks inside the window only', () {
+      final p = scheduled(base);
+      expect(p.isBlockingAt(noon), true);
+      expect(p.isBlockingAt(evening), false);
+    });
+
+    test('task mode blocks until every task is done', () {
+      final p = base.copyWith(taskModeEnabled: true, tasks: pendingTask);
+      expect(p.isBlockingAt(noon), true);
+      expect(p.copyWith(tasks: doneTask).isBlockingAt(noon), false);
+    });
+
+    test('usage limit blocks only once the OS reports it reached', () {
+      final p = base.copyWith(usageLimitEnabled: true, usageLimitMinutes: 30);
+      expect(p.isBlockingAt(noon), false);
+      expect(p.isBlockingAt(noon, limitReachedToday: true), true);
+    });
+
+    test('a limit report is ignored when the limit rule is off', () {
+      final p = scheduled(base);
+      expect(p.isBlockingAt(evening, limitReachedToday: true), false);
+    });
+
+    test('schedule + tasks: done tasks do not unblock inside the window', () {
+      final p = scheduled(
+        base,
+      ).copyWith(taskModeEnabled: true, tasks: doneTask);
+      expect(p.isBlockingAt(noon), true);
+      expect(p.isBlockingAt(evening), false);
+    });
+
+    test('schedule + tasks: pending tasks block outside the window too', () {
+      final p = scheduled(
+        base,
+      ).copyWith(taskModeEnabled: true, tasks: pendingTask);
+      expect(p.isBlockingAt(evening), true);
+    });
+
+    test('schedule + limit: a reached limit blocks after the window ends', () {
+      final p = scheduled(
+        base,
+      ).copyWith(usageLimitEnabled: true, usageLimitMinutes: 30);
+      expect(p.isBlockingAt(evening), false);
+      expect(p.isBlockingAt(evening, limitReachedToday: true), true);
+    });
+  });
+
+  group('copyWith', () {
+    const full = BlockerProfile(
+      id: 'p',
+      name: 'P',
+      scheduleStartHour: 9,
+      scheduleStartMinute: 15,
+      scheduleEndHour: 17,
+      scheduleEndMinute: 45,
+      usageLimitMinutes: 30,
+      tasksLastResetDate: '2026-11-17',
+      shieldActivatedAt: '2026-11-17T08:00:00.000',
+    );
+
+    test('omitted arguments keep the current values', () {
+      final copy = full.copyWith(name: 'Renamed');
+
+      expect(copy.name, 'Renamed');
+      expect(copy.scheduleStartHour, 9);
+      expect(copy.scheduleEndMinute, 45);
+      expect(copy.usageLimitMinutes, 30);
+      expect(copy.tasksLastResetDate, '2026-11-17');
+      expect(copy.shieldActivatedAt, '2026-11-17T08:00:00.000');
+    });
+
+    test('passing null clears a nullable field', () {
+      final copy = full.copyWith(
+        scheduleStartHour: null,
+        scheduleStartMinute: null,
+        scheduleEndHour: null,
+        scheduleEndMinute: null,
+        usageLimitMinutes: null,
+        tasksLastResetDate: null,
+        shieldActivatedAt: null,
+      );
+
+      expect(copy.scheduleStartHour, isNull);
+      expect(copy.scheduleStartMinute, isNull);
+      expect(copy.scheduleEndHour, isNull);
+      expect(copy.scheduleEndMinute, isNull);
+      expect(copy.usageLimitMinutes, isNull);
+      expect(copy.tasksLastResetDate, isNull);
+      expect(copy.shieldActivatedAt, isNull);
+    });
+
+    test('nullable fields can be replaced', () {
+      final copy = full.copyWith(usageLimitMinutes: 90, shieldActivatedAt: 'x');
+
+      expect(copy.usageLimitMinutes, 90);
+      expect(copy.shieldActivatedAt, 'x');
     });
   });
 }

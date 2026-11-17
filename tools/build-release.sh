@@ -4,7 +4,7 @@
 # Prerequisites (one-time):
 #   1) Run tools/setup-ios-toolchain.sh
 #   2) In Apple Developer Portal, ensure App IDs + Distribution provisioning
-#      profiles exist for all five bundle IDs:
+#      profiles exist for all four bundle IDs:
 #        com.maxroth.backyourtime
 #        com.maxroth.backyourtime.FocusMonitor
 #        com.maxroth.backyourtime.AppBlocker
@@ -21,12 +21,20 @@ echo "==> Pre-flight checks"
 flutter --version | head -1
 
 echo
+echo "==> Formatting"
+dart format --output=none --set-exit-if-changed lib test integration_test
+
+echo
 echo "==> Static analysis"
 flutter analyze
 
 echo
 echo "==> Tests"
 flutter test
+
+echo
+echo "==> Native rule engine tests"
+swift test --package-path ios/Shared
 
 echo
 echo "==> Clean previous build artifacts"

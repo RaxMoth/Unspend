@@ -1,36 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unspend/core/providers.dart';
 
-const _key = 'app_theme_mode';
-
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>(
-  (ref) => ThemeModeNotifier(),
+/// The user's light / dark / system choice, stored in preferences.
+final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
+  ThemeModeNotifier.new,
 );
 
-class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.system) {
-    _load();
-  }
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  static const storageKey = 'app_theme_mode';
 
-  Future<void> _load() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final value = prefs.getString(_key);
-      if (value != null) {
-        state = ThemeMode.values.firstWhere(
-          (m) => m.name == value,
-          orElse: () => ThemeMode.system,
-        );
-      }
-    } catch (_) {
-      // Fall back to system theme on read failure.
-    }
+  @override
+  ThemeMode build() {
+    final stored = ref.watch(sharedPreferencesProvider).getString(storageKey);
+    return ThemeMode.values.firstWhere(
+      (mode) => mode.name == stored,
+      orElse: () => ThemeMode.system,
+    );
   }
 
   Future<void> setMode(ThemeMode mode) async {
     state = mode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, mode.name);
+    await ref.read(sharedPreferencesProvider).setString(storageKey, mode.name);
   }
 }

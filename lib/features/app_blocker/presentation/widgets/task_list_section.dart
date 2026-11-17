@@ -3,18 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/theme/design_tokens.dart';
+
 import '../../domain/entities/blocker_profile.dart';
 import '../providers/profiles_provider.dart';
 import 'section_widgets.dart';
 
+/// The tasks of a task-mode profile: tick them off, and while the profile
+/// is inactive add and remove them.
 class TaskListSection extends ConsumerStatefulWidget {
-  final BlockerProfile profile;
-  final Color accent;
   const TaskListSection({
     super.key,
     required this.profile,
     required this.accent,
   });
+
+  final BlockerProfile profile;
+  final Color accent;
 
   @override
   ConsumerState<TaskListSection> createState() => _TaskListSectionState();
@@ -22,6 +26,8 @@ class TaskListSection extends ConsumerStatefulWidget {
 
 class _TaskListSectionState extends ConsumerState<TaskListSection> {
   final _taskController = TextEditingController();
+
+  ProfilesNotifier get _notifier => ref.read(profilesProvider.notifier);
 
   @override
   void dispose() {
@@ -32,33 +38,36 @@ class _TaskListSectionState extends ConsumerState<TaskListSection> {
   void _addTask() {
     final title = _taskController.text.trim();
     if (title.isEmpty) return;
-    ref.read(profilesProvider.notifier).addTask(widget.profile.id, title);
+    HapticFeedback.selectionClick();
+    _notifier.addTask(widget.profile.id, title);
     _taskController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
-    final tasks = widget.profile.tasks;
-    final doneCount = tasks.where((t) => t.isDone).length;
-    final isActive = widget.profile.isActive;
+    final s = S.current;
+    final profile = widget.profile;
+    final accent = widget.accent;
+    final tasks = profile.tasks;
+    final done = profile.doneTaskCount;
+    final allDone = profile.allTasksDone;
+    final progressColor = allDone ? kSuccess : accent;
 
-    return Semantics(
-      label:
-          '${S.current.tasks}, $doneCount ${S.current.tasks.toLowerCase()} of ${tasks.length} completed',
-      child: SectionCard(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row
-              Row(
+    return SectionCard(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Row(
                 children: [
-                  Icon(Icons.checklist_rounded, color: widget.accent, size: 20),
+                  Icon(Icons.checklist_rounded, color: accent, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      S.current.tasks,
+                      s.tasks,
                       style: TextStyle(
                         color: kTextPrimary,
                         fontSize: 15,
@@ -67,203 +76,130 @@ class _TaskListSectionState extends ConsumerState<TaskListSection> {
                     ),
                   ),
                   if (tasks.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: doneCount == tasks.length
-                            ? kSuccess.withValues(alpha: 0.15)
-                            : widget.accent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '$doneCount / ${tasks.length}',
-                        style: TextStyle(
-                          color: doneCount == tasks.length
-                              ? kSuccess
-                              : widget.accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                    Semantics(
+                      label: s.tasksProgress(done, tasks.length),
+                      excludeSemantics: true,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: progressColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$done / ${tasks.length}',
+                          style: TextStyle(
+                            color: kReadable(progressColor),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
                 ],
               ),
-              if (tasks.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: tasks.isEmpty ? 0 : doneCount / tasks.length,
-                    backgroundColor: kBorder,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      doneCount == tasks.length ? kSuccess : widget.accent,
-                    ),
-                    minHeight: 4,
-                  ),
-                ),
-              ],
+            ),
+            if (tasks.isNotEmpty) ...[
               const SizedBox(height: 12),
-
-              // Task items
-              ...tasks.map(
-                (task) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    children: [
-                      Semantics(
-                        label:
-                            '${task.title}, ${task.isDone ? S.current.allTasksDoneNote : S.current.tasks}',
-                        checked: task.isDone,
-                        button: true,
-                        child: GestureDetector(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            ref
-                                .read(profilesProvider.notifier)
-                                .toggleTask(widget.profile.id, task.id);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: task.isDone
-                                  ? kSuccess.withValues(alpha: 0.2)
-                                  : Colors.transparent,
-                              border: Border.all(
-                                color: task.isDone ? kSuccess : kBorder,
-                                width: 1.5,
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: task.isDone
-                                ? const Icon(
-                                    Icons.check_rounded,
-                                    color: kSuccess,
-                                    size: 16,
-                                  )
-                                : null,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          task.title,
-                          style: TextStyle(
-                            color: task.isDone ? kTextSecondary : kTextPrimary,
-                            fontSize: 14,
-                            decoration: task.isDone
-                                ? TextDecoration.lineThrough
-                                : null,
-                            decorationColor: kTextSecondary,
-                          ),
-                        ),
-                      ),
-                      if (!isActive)
-                        GestureDetector(
-                          onTap: () => ref
-                              .read(profilesProvider.notifier)
-                              .removeTask(widget.profile.id, task.id),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Icon(
-                              Icons.close_rounded,
-                              color: kTextSecondary,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                    ],
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ExcludeSemantics(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: done / tasks.length,
+                      backgroundColor: kBorder,
+                      valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                      minHeight: 4,
+                    ),
                   ),
                 ),
               ),
-
-              // Add-task row (only when shield is NOT active)
-              if (!isActive) ...[
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _taskController,
-                        style: TextStyle(color: kTextPrimary, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: S.current.addTaskHint,
-                          hintStyle: TextStyle(
-                            color: kTextSecondary,
-                            fontSize: 14,
-                          ),
-                          isDense: true,
-                          filled: true,
-                          fillColor: kBg,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: kBorder),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: kBorder),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: widget.accent),
-                          ),
-                        ),
-                        onSubmitted: (_) => _addTask(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Semantics(
-                      button: true,
-                      label: S.current.addTaskHint,
-                      child: Material(
-                        color: widget.accent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                        child: InkWell(
-                          onTap: _addTask,
-                          borderRadius: BorderRadius.circular(10),
-                          child: SizedBox(
-                            width: 38,
-                            height: 38,
-                            child: Icon(
-                              Icons.add_rounded,
-                              color: widget.accent,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 4),
+            ] else
+              Padding(
+                padding: const EdgeInsets.only(top: 8, right: 8),
+                child: Text(
+                  s.emptyTasksHint,
+                  style: TextStyle(color: kTextSecondary, fontSize: 12),
                 ),
-              ],
+              ),
 
-              // Info note when active
-              if (isActive && tasks.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Row(
+            for (final task in tasks)
+              _TaskRow(
+                task: task,
+                onToggle: () {
+                  HapticFeedback.selectionClick();
+                  _notifier.toggleTask(profile.id, task.id);
+                },
+                onDelete: profile.isActive
+                    ? null
+                    : () => _notifier.removeTask(profile.id, task.id),
+              ),
+
+            if (!profile.isActive) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _taskController,
+                      style: TextStyle(color: kTextPrimary, fontSize: 14),
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        hintText: s.addTaskHint,
+                        hintStyle: TextStyle(
+                          color: kTextSecondary,
+                          fontSize: 14,
+                        ),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                      onSubmitted: (_) => _addTask(),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: s.addTask,
+                    onPressed: _addTask,
+                    style: IconButton.styleFrom(
+                      backgroundColor: accent.withValues(alpha: 0.15),
+                      foregroundColor: accent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 22),
+                  ),
+                ],
+              ),
+            ] else if (tasks.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      color: kTextSecondary,
-                      size: 14,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(
+                        Icons.info_outline_rounded,
+                        color: kTextSecondary,
+                        size: 14,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        doneCount == tasks.length
-                            ? S.current.allTasksDoneNote
-                            : S.current.tasksRemainingNote(
-                                tasks.length - doneCount,
-                              ),
+                        allDone
+                            ? s.allTasksDoneNote
+                            : s.tasksRemainingNote(profile.pendingTaskCount),
                         style: TextStyle(
                           color: kTextSecondary,
                           fontSize: 12,
@@ -273,20 +209,100 @@ class _TaskListSectionState extends ConsumerState<TaskListSection> {
                     ),
                   ],
                 ),
-              ],
-
-              if (tasks.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    S.current.emptyTasksHint,
-                    style: TextStyle(color: kTextSecondary, fontSize: 12),
-                  ),
-                ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _TaskRow extends StatelessWidget {
+  const _TaskRow({
+    required this.task,
+    required this.onToggle,
+    required this.onDelete,
+  });
+
+  final BlockerTask task;
+  final VoidCallback onToggle;
+
+  /// Null hides the delete button (tasks are fixed while active).
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: MergeSemantics(
+            child: Semantics(
+              checked: task.isDone,
+              child: InkWell(
+                onTap: onToggle,
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Row(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: task.isDone
+                              ? kSuccess.withValues(alpha: 0.2)
+                              : Colors.transparent,
+                          border: Border.all(
+                            color: task.isDone ? kSuccess : kTextSecondary,
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: task.isDone
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: kSuccess,
+                                size: 16,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Text(
+                            task.title,
+                            style: TextStyle(
+                              color: task.isDone
+                                  ? kTextSecondary
+                                  : kTextPrimary,
+                              fontSize: 14,
+                              decoration: task.isDone
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              decorationColor: kTextSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (onDelete != null)
+          IconButton(
+            tooltip: S.current.deleteTaskLabel(task.title),
+            onPressed: onDelete,
+            icon: Icon(Icons.close_rounded, color: kTextSecondary, size: 20),
+          )
+        else
+          const SizedBox(width: 8),
+      ],
     );
   }
 }

@@ -1,66 +1,54 @@
 import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-// ── Persistence key ────────────────────────────────────────────────────────
-const _kShieldDailyLog = 'shield_daily_log';
+import '../../../../core/providers.dart';
+import '../../../../core/time/day_key.dart';
 
-// ── Provider ───────────────────────────────────────────────────────────────
-
-/// Exposes a date → active-shield-count map for the contribution grid.
+/// Day (`yyyy-MM-dd`) → the highest number of profiles that were active at
+/// the same time on that day.
+///
+/// Recorded for a future statistics screen; nothing displays it yet.
 final shieldActivityProvider =
-    AsyncNotifierProvider<ShieldActivityNotifier, Map<String, int>>(
+    NotifierProvider<ShieldActivityNotifier, Map<String, int>>(
       ShieldActivityNotifier.new,
     );
 
-// ── Notifier ───────────────────────────────────────────────────────────────
+class ShieldActivityNotifier extends Notifier<Map<String, int>> {
+  static const storageKey = 'shield_daily_log';
 
-class ShieldActivityNotifier extends AsyncNotifier<Map<String, int>> {
+  /// Older entries are dropped to keep storage bounded.
+  static const retention = Duration(days: 180);
+
   @override
-  Future<Map<String, int>> build() async => _load();
-
-  /// Record today's active shield count (keeps the higher value per day).
-  Future<void> record(int activeCount) async {
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    // Ensure we have loaded data before merging, to avoid overwriting
-    // persisted entries when the initial build() hasn't resolved yet.
-    final current = state.valueOrNull ?? await _load();
-    final log = {...current};
-    final prev = log[today] ?? 0;
-    // Keep the peak value seen for the day.
-    if (activeCount > prev) {
-      log[today] = activeCount;
-    } else if (!log.containsKey(today)) {
-      log[today] = activeCount;
-    }
-    state = AsyncData(log);
-    await _save(log);
-  }
-
-  // ── Persistence helpers ────────────────────────────────────────────────
-
-  static Future<Map<String, int>> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_kShieldDailyLog);
-    if (raw == null) return {};
+  Map<String, int> build() {
+    final raw = ref.watch(sharedPreferencesProvider).getString(storageKey);
+    if (raw == null) return const {};
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      return decoded.map((k, v) => MapEntry(k, (v as num).toInt()));
+      return decoded.map((day, count) => MapEntry(day, (count as num).toInt()));
     } catch (_) {
-      return {};
+      return const {};
     }
   }
 
-  static Future<void> _save(Map<String, int> log) async {
-    final prefs = await SharedPreferences.getInstance();
-    // Trim entries older than 6 months to keep storage bounded.
-    final cutoff = DateTime.now().subtract(const Duration(days: 180));
-    final trimmed = Map.fromEntries(
-      log.entries.where((e) {
-        final d = DateTime.tryParse(e.key);
-        return d != null && d.isAfter(cutoff);
-      }),
-    );
-    await prefs.setString(_kShieldDailyLog, jsonEncode(trimmed));
+  /// Records today's number of active profiles, keeping the day's peak.
+  Future<void> record(int activeCount) async {
+    final now = ref.read(clockProvider)();
+    final today = dayKey(now);
+    final previous = state[today];
+    if (previous != null && previous >= activeCount) return;
+
+    final cutoff = now.subtract(retention);
+    final log = {
+      for (final entry in state.entries)
+        if (DateTime.tryParse(entry.key)?.isAfter(cutoff) ?? false)
+          entry.key: entry.value,
+      today: activeCount,
+    };
+    state = log;
+    await ref
+        .read(sharedPreferencesProvider)
+        .setString(storageKey, jsonEncode(log));
   }
 }

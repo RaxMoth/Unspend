@@ -36,15 +36,16 @@
     <key>NSPrivacyAccessedAPITypes</key>
     <array>
         <dict>
-            <!-- UserDefaults: used to persist user preferences (selected
-                 locale, theme, profiles, hashed PIN salt) and to share
-                 FamilyActivitySelection across the app + extensions via
-                 an App Group. Both are app-functionality use cases. -->
+            <!-- UserDefaults.
+                 CA92.1: the app's own preferences (locale, theme, profiles).
+                 1C8F.1: the App Group shared with our own extensions (app
+                 selections, blocking rules, shield text). -->
             <key>NSPrivacyAccessedAPIType</key>
             <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
             <key>NSPrivacyAccessedAPITypeReasons</key>
             <array>
                 <string>CA92.1</string>
+                <string>1C8F.1</string>
             </array>
         </dict>
     </array>

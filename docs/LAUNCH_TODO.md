@@ -11,7 +11,8 @@ Estimated total active time: **6–10 hours** of focused work, spread over
 
 ## ✅ Already done (no action needed)
 
-- Code complete + signed iOS build verified
+- Code complete; simulator and unsigned release builds verified (2026-11-17)
+- **Not done: blocking verified on a physical iPhone** — do [PUBLISH.md](PUBLISH.md) section 0 first
 - All 4 iOS extensions wired in (Runner, FocusMonitor, AppBlocker, ShieldConfigurationExtension)
 - Per-profile shield logic (no cross-profile leak)
 - Tactile feedback + haptics across the app
@@ -41,6 +42,8 @@ Three of the four App IDs are registered. One is missing.
 - [ ] **Confirm Family Controls (Distribution) is approved** for your team
       → If you haven't requested it yet, do so at
       [developer.apple.com/contact/request/family-controls-distribution](https://developer.apple.com/contact/request/family-controls-distribution)
+      → In the request, describe both uses: self-control on the user's own
+      iPhone and parental control on a child's iPhone (Family Sharing).
       → **This is the longest pole** — Apple typically takes 3–14 days to approve.
       You can build/run on your own device with the Development entitlement
       while you wait, but you cannot submit to App Store until this is approved.
@@ -154,16 +157,9 @@ Before submitting for review, install the actual production build on a real devi
 
 - [ ] In App Store Connect → TestFlight → add yourself as an internal tester
 - [ ] Install TestFlight on your iPhone, install Unspend from there
-- [ ] Walk through the test plan in [store/review-notes.md](store/review-notes.md):
-      - Onboarding shows on first launch
-      - Family Controls auth prompt approved
-      - Create profile → pick apps → tap "Block now"
-      - Selected apps open the shield (custom UI, not the default OS one)
-      - Deactivate → 5-min cooldown → PIN prompt
-      - Try Schedule, Usage Limit, Task Mode independently
-      - **Test the multi-profile case**: profile A and B both blocking the
-        same app, deactivate A → app stays blocked by B (this was the
-        major correctness fix we just landed)
+- [ ] Walk through the device checklist in [PUBLISH.md](PUBLISH.md), section 0
+      (permission, manual block, two profiles sharing an app, schedule, usage
+      limit, task mode overnight, websites, deleting, restart)
 - [ ] If anything's broken, fix → bump build number → re-upload → re-test
 - [ ] When you're happy with the build, move to Phase 6
 
@@ -219,13 +215,11 @@ specifically to the section of the review notes that addresses their concern.
 
 Not blockers — things to plan for v1.0.1:
 
-- [ ] Add a CI workflow (`.github/workflows/ci.yml`) running `flutter analyze` + `flutter test` on PRs
-- [ ] Expand `test/` beyond the smoke test — at minimum: PIN hashing round-trip, profile JSON round-trip, schedule overnight-window math
 - [ ] Add Sentry or a similar crash reporter (note: this changes your privacy label — disclose data collection)
 - [ ] Consider a freemium model: maybe limit to 1 profile on free, unlimited on $X.99
 - [ ] App Store screenshots could be A/B tested via App Store Connect experiments
 - [ ] Add iPad layout if you want iPad availability (currently iPhone-only)
-- [ ] Migrate any users coming from the old `blockedApps` shared key (one-off migration script in Dart)
+- [ ] A statistics screen for the usage data the app already records
 
 ---
 
@@ -235,10 +229,11 @@ Not blockers — things to plan for v1.0.1:
 - **Never amend or force-push** the release tag once you've uploaded a build
 - After each upload, bump `version: 1.0.0+N` in `pubspec.yaml` (the build number
   must be strictly increasing — App Store Connect rejects duplicates)
-- Family Controls authorization is per-app; if the user revokes it from
-  Settings → Screen Time → Apps Using Screen Time, you'll get errors next
-  shield apply. The app should handle this gracefully (current `applyShield`
-  call surfaces a `FlutterError` you can show in a snackbar)
+- Family Controls authorization is per-app; if the user revokes it under
+  Settings → Screen Time, iOS stops blocking. The app notices when it returns
+  to the foreground and shows the permission banner on the dashboard.
+- After adding a Swift file under `ios/Shared`, run
+  `cd ios && bundle exec ruby ../tools/ios_project.rb` so every target compiles it.
 
 ---
 
