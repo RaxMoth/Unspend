@@ -10,6 +10,10 @@ import 'package:crypto/crypto.dart';
 class PinHasher {
   const PinHasher._();
 
+  /// Length of a salt in bytes.
+  static const saltLengthBytes = 16;
+  static const _byteValues = 256;
+
   /// Generates a random 16-byte salt as a lowercase hex string (32 chars).
   ///
   /// Pass a seeded [random] in tests for determinism; production callers omit
@@ -17,8 +21,8 @@ class PinHasher {
   static String generateSalt([Random? random]) {
     final rng = random ?? Random.secure();
     return List.generate(
-      16,
-      (_) => rng.nextInt(256),
+      saltLengthBytes,
+      (_) => rng.nextInt(_byteValues),
     ).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 

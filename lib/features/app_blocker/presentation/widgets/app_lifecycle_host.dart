@@ -81,7 +81,7 @@ class _AppLifecycleHostState extends ConsumerState<AppLifecycleHost>
     _minuteTimer?.cancel();
     final now = _now();
     final untilNextMinute = Duration(
-      seconds: 60 - now.second,
+      seconds: Duration.secondsPerMinute - now.second,
       milliseconds: -now.millisecond,
     );
     _minuteTimer = Timer(untilNextMinute, () {

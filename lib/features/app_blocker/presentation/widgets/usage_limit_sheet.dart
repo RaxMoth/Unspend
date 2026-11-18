@@ -2,14 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/app_sheet.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
+import '../../domain/shield_policy.dart';
 import '../profile_formatters.dart';
-import 'section_widgets.dart';
-
-const _minMinutes = 1;
-const _maxMinutes = 24 * 60 - 1;
 
 /// The daily limit of the usage-limit rule; opens the duration picker.
 class UsageLimitCard extends StatelessWidget {
@@ -26,59 +23,35 @@ class UsageLimitCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SectionCard(
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(Icons.timer_outlined, color: accent, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    S.current.dailyLimit,
-                    style: TextStyle(
-                      color: kTextPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      formatDurationMinutes(minutes),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: kReadable(accent),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: kTextSecondary,
-                  size: 20,
-                ),
-              ],
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Icon(
+            Icons.timer_outlined,
+            size: AppSizes.iconMd,
+            color: context.colors.readable(accent),
+          ),
+          Gap.hSm,
+          Expanded(
+            child: Text(S.current.dailyLimit, style: context.text.label),
+          ),
+          Gap.hSm,
+          // Shares the row with the label; the value stays at the trailing
+          // edge and wraps when both are long.
+          Flexible(
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: AppChip(
+                label: formatDurationMinutes(minutes),
+                color: accent,
+                prominent: true,
+              ),
             ),
           ),
-        ),
+          Gap.hXs,
+          const Icon(Icons.chevron_right_rounded, size: AppSizes.iconMd),
+        ],
       ),
     );
   }
@@ -113,15 +86,24 @@ class _UsageLimitPicker extends StatefulWidget {
 }
 
 class _UsageLimitPickerState extends State<_UsageLimitPicker> {
+  static const double _wheelHeight = 180;
+  static const int _maxHours = 23;
+  static const int _maxMinutesPart = 59;
+
   static _PickerMode _lastUsedMode = _PickerMode.wheel;
 
   late _PickerMode _mode = _lastUsedMode;
-  late int _minutes = widget.initialMinutes.clamp(_minMinutes, _maxMinutes);
+  late int _minutes = _clamp(widget.initialMinutes);
   late final _hoursController = TextEditingController(
     text: '${_minutes ~/ 60}',
   );
   late final _minutesController = TextEditingController(
     text: '${_minutes % 60}',
+  );
+
+  static int _clamp(int minutes) => minutes.clamp(
+    ShieldPolicy.minUsageLimitMinutes,
+    ShieldPolicy.maxUsageLimitMinutes,
   );
 
   @override
@@ -135,41 +117,44 @@ class _UsageLimitPickerState extends State<_UsageLimitPicker> {
     if (_mode == _PickerMode.keypad) {
       final hours = int.tryParse(_hoursController.text.trim()) ?? 0;
       final minutes = int.tryParse(_minutesController.text.trim()) ?? 0;
-      _minutes = (hours * 60 + minutes).clamp(_minMinutes, _maxMinutes);
+      _minutes = _clamp(hours * 60 + minutes);
     }
-    HapticFeedback.lightImpact();
+    AppHaptics.confirm();
     Navigator.of(context).pop(_minutes);
   }
 
-  Widget _modeLabel(String text, _PickerMode mode) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-    child: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(
-        text,
-        style: TextStyle(
-          color: _mode == mode ? kFilled(widget.accent).onFill : kTextPrimary,
-          fontWeight: FontWeight.w600,
+  Widget _modeLabel(String label, _PickerMode mode, FilledColors filled) =>
+      Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: context.text.body.strong.tone(
+              _mode == mode ? filled.onFill : context.colors.textPrimary,
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   @override
   Widget build(BuildContext context) {
+    final s = S.current;
+    final colors = context.colors;
+    final text = context.text;
     final accent = widget.accent;
-    final filled = kFilled(accent);
+    final filled = colors.filled(accent);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         CupertinoSlidingSegmentedControl<_PickerMode>(
           groupValue: _mode,
-          backgroundColor: kBorder,
+          backgroundColor: colors.border,
           thumbColor: filled.fill,
           onValueChanged: (mode) {
             if (mode == null) return;
-            HapticFeedback.selectionClick();
+            AppHaptics.selection();
             setState(() {
               _mode = mode;
               _lastUsedMode = mode;
@@ -177,25 +162,25 @@ class _UsageLimitPickerState extends State<_UsageLimitPicker> {
           },
           children: {
             _PickerMode.wheel: _modeLabel(
-              S.current.pickerModeWheel,
+              s.pickerModeWheel,
               _PickerMode.wheel,
+              filled,
             ),
             _PickerMode.keypad: _modeLabel(
-              S.current.pickerModeKeypad,
+              s.pickerModeKeypad,
               _PickerMode.keypad,
+              filled,
             ),
           },
         ),
-        const SizedBox(height: 16),
+        Gap.vLg,
         if (_mode == _PickerMode.wheel)
           SizedBox(
-            height: 180,
+            height: _wheelHeight,
             child: CupertinoTheme(
               data: CupertinoThemeData(
-                brightness: Theme.of(context).brightness,
-                textTheme: CupertinoTextThemeData(
-                  pickerTextStyle: TextStyle(color: kTextPrimary, fontSize: 20),
-                ),
+                brightness: colors.brightness,
+                textTheme: CupertinoTextThemeData(pickerTextStyle: text.title),
               ),
               // The wheel has a fixed geometry; scaled text would be clipped.
               child: MediaQuery.withNoTextScaling(
@@ -203,10 +188,7 @@ class _UsageLimitPickerState extends State<_UsageLimitPicker> {
                   mode: CupertinoTimerPickerMode.hm,
                   initialTimerDuration: Duration(minutes: _minutes),
                   onTimerDurationChanged: (duration) {
-                    _minutes = duration.inMinutes.clamp(
-                      _minMinutes,
-                      _maxMinutes,
-                    );
+                    _minutes = _clamp(duration.inMinutes);
                   },
                 ),
               ),
@@ -214,68 +196,56 @@ class _UsageLimitPickerState extends State<_UsageLimitPicker> {
           )
         else
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _NumberField(
-                  controller: _hoursController,
-                  label: S.current.hoursShort,
-                  max: 23,
-                  accent: accent,
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                  child: ExcludeSemantics(
-                    child: Text(
-                      ':',
-                      style: TextStyle(
-                        color: kTextPrimary,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                Flexible(
+                  child: _NumberField(
+                    controller: _hoursController,
+                    label: s.hoursShort,
+                    max: _maxHours,
+                    accent: accent,
                   ),
                 ),
-                _NumberField(
-                  controller: _minutesController,
-                  label: S.current.minutesShort,
-                  max: 59,
-                  accent: accent,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                    AppSpacing.md,
+                    0,
+                  ),
+                  child: ExcludeSemantics(
+                    child: Text(':', style: text.numeral),
+                  ),
+                ),
+                Flexible(
+                  child: _NumberField(
+                    controller: _minutesController,
+                    label: s.minutesShort,
+                    max: _maxMinutesPart,
+                    accent: accent,
+                  ),
                 ),
               ],
             ),
           ),
-        const SizedBox(height: 16),
+        Gap.vLg,
         Row(
           children: [
             Expanded(
-              child: TextButton(
+              child: AppButton.secondary(
+                label: s.cancel,
                 onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                child: Text(
-                  S.current.cancel,
-                  style: TextStyle(color: kTextSecondary),
-                ),
               ),
             ),
-            const SizedBox(width: 12),
+            Gap.hMd,
             Expanded(
-              child: FilledButton(
+              child: AppButton.primary(
+                label: s.save,
+                color: accent,
                 onPressed: _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: filled.fill,
-                  foregroundColor: filled.onFill,
-                  minimumSize: const Size.fromHeight(48),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text(
-                  S.current.save,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
               ),
             ),
           ],
@@ -293,6 +263,9 @@ class _NumberField extends StatelessWidget {
     required this.accent,
   });
 
+  /// Widest the field gets; it narrows when the sheet is tight.
+  static const double _maxWidth = 96;
+
   final TextEditingController controller;
   final String label;
   final int max;
@@ -300,11 +273,13 @@ class _NumberField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final text = context.text;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 96,
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _maxWidth),
           child: Semantics(
             label: label,
             child: TextField(
@@ -312,11 +287,7 @@ class _NumberField extends StatelessWidget {
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
               maxLength: 2,
-              style: TextStyle(
-                color: kTextPrimary,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
+              style: text.numeral,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
                 _MaxValueFormatter(max),
@@ -324,27 +295,25 @@ class _NumberField extends StatelessWidget {
               decoration: InputDecoration(
                 counterText: '',
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: accent, width: 2),
+                  borderRadius: AppRadius.control,
+                  borderSide: BorderSide(
+                    color: colors.readable(accent),
+                    width: 2,
+                  ),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 8,
+                  vertical: AppSpacing.md,
+                  horizontal: AppSpacing.sm,
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        Gap.vXs,
         ExcludeSemantics(
           child: Text(
             label,
-            style: TextStyle(
-              color: kTextSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
+            style: text.caption.strong.tone(colors.textSecondary),
           ),
         ),
       ],

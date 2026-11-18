@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/providers.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/content_width.dart';
+import 'package:unspend/core/storage_keys.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 import 'package:unspend/features/app_blocker/data/datasources/screen_time_datasource.dart';
 import 'package:unspend/features/app_blocker/presentation/profile_actions.dart';
 import 'package:unspend/features/app_blocker/presentation/providers/authorization_provider.dart';
@@ -44,37 +44,48 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _finish() async {
     await ref
         .read(sharedPreferencesProvider)
-        .setBool(kHasSeenOnboardingKey, true);
+        .setBool(PrefKeys.onboardingSeen, true);
     if (mounted) context.go(AppRoutes.dashboard);
   }
 
-  void _next() => _pageController.nextPage(
-    duration: const Duration(milliseconds: 300),
-    curve: Curves.easeInOut,
-  );
+  void _next() {
+    final duration = context.motion(AppDurations.slow);
+    if (duration == Duration.zero) {
+      // Reduce Motion: change the page without sliding.
+      _pageController.jumpToPage(_page + 1);
+    } else {
+      _pageController.nextPage(duration: duration, curve: AppCurves.standard);
+    }
+  }
 
   void _chooseMode(DeviceMode mode) {
-    HapticFeedback.selectionClick();
+    AppHaptics.selection();
     ref.read(deviceModeProvider.notifier).set(mode);
     // A refusal belonged to the previous choice.
     setState(() => _refusal = null);
   }
 
   Future<void> _requestAccess() async {
+    if (_requesting) return;
     setState(() => _requesting = true);
-    final result = await ref.read(authorizationProvider.notifier).request();
-    if (!mounted) return;
-    setState(() {
-      _requesting = false;
-      _refusal = result.approved
-          ? null
-          : accessRefusedMessage(S.current, result);
-    });
+    try {
+      final result = await ref.read(authorizationProvider.notifier).request();
+      if (!mounted) return;
+      setState(() {
+        _refusal = result.approved
+            ? null
+            : accessRefusedMessage(S.current, result);
+      });
+      if (result.approved) AppHaptics.confirm();
+    } finally {
+      if (mounted) setState(() => _requesting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final s = S.current;
+    final colors = context.colors;
     final onPermissionPage = _page == _permissionPage;
     final mode = ref.watch(deviceModeProvider);
     final approved =
@@ -112,37 +123,41 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ? s.onboardingBody4Child
             : s.onboardingBody4,
         note: approved ? s.authGranted : _refusal,
-        noteColor: approved ? kSuccessText : kTextSecondary,
+        noteColor: approved ? colors.successText : colors.textSecondary,
       ),
     ];
 
     final String primaryLabel;
-    final VoidCallback? primaryAction;
+    final VoidCallback primaryAction;
     if (!onPermissionPage) {
       primaryLabel = s.next;
       primaryAction = _next;
     } else if (approved) {
       primaryLabel = s.getStarted;
-      primaryAction = _finish;
+      primaryAction = () => runGuarded(context, _finish);
     } else {
       primaryLabel = s.authAllow;
-      primaryAction = _requesting ? null : _requestAccess;
+      primaryAction = () => runGuarded(context, _requestAccess);
     }
 
     return Scaffold(
-      backgroundColor: kBg,
       body: SafeArea(
         child: Column(
           children: [
             Align(
               alignment: AlignmentDirectional.topEnd,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                  AppSpacing.lg,
+                  0,
+                ),
                 child: TextButton(
-                  onPressed: _finish,
+                  onPressed: () => runGuarded(context, _finish),
                   child: Text(
                     onPermissionPage && !approved ? s.notNow : s.skip,
-                    style: TextStyle(color: kTextSecondary, fontSize: 14),
+                    style: context.text.body.tone(colors.textSecondary),
                   ),
                 ),
               ),
@@ -155,52 +170,55 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
             ExcludeSemantics(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (var i = 0; i < _pageCount; i++)
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: i == _page ? 20 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: i == _page ? kAccent : kBorder,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                ],
-              ),
+              child: _PageDots(count: _pageCount, current: _page),
             ),
-            const SizedBox(height: 16),
+            Gap.vLg,
             ContentGutter(
-              minimum: 24,
+              minimum: AppSpacing.xxl,
               builder: (context, gutter) => Padding(
-                padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: primaryAction,
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      primaryLabel,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                padding: EdgeInsets.fromLTRB(gutter, 0, gutter, AppSpacing.lg),
+                child: AppButton.primary(
+                  label: primaryLabel,
+                  loading: _requesting,
+                  onPressed: primaryAction,
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Shows which page of the introduction is on screen.
+class _PageDots extends StatelessWidget {
+  const _PageDots({required this.count, required this.current});
+
+  static const double _dot = AppSpacing.sm;
+  static const double _currentWidth = AppSpacing.xl;
+
+  final int count;
+  final int current;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < count; i++)
+          AnimatedContainer(
+            duration: context.motion(AppDurations.medium),
+            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            width: i == current ? _currentWidth : _dot,
+            height: _dot,
+            decoration: ShapeDecoration(
+              color: i == current ? colors.accent : colors.border,
+              shape: const StadiumBorder(),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -217,6 +235,9 @@ class _OnboardingPage extends StatelessWidget {
     this.footer,
   });
 
+  /// Below this height the illustration shrinks to leave room for text.
+  static const double _compactHeight = 360;
+
   final IconData icon;
   final String title;
   final String body;
@@ -228,70 +249,64 @@ class _OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final text = context.text;
     return LayoutBuilder(
       builder: (context, constraints) {
         // Less decoration when vertical space is tight or the page carries
         // controls of its own.
-        final compact = constraints.maxHeight < 360 || footer != null;
-        final iconBox = compact ? 64.0 : 100.0;
+        final compact =
+            constraints.maxHeight < _compactHeight || footer != null;
         return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxxl,
+            vertical: AppSpacing.sm,
+          ),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 16),
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 2 * AppSpacing.sm,
+            ),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: kMaxContentWidth),
+                constraints: const BoxConstraints(
+                  maxWidth: AppSizes.maxContentWidth,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: iconBox,
-                      height: iconBox,
-                      decoration: BoxDecoration(
-                        color: kAccent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(iconBox * 0.28),
-                      ),
-                      child: Icon(icon, size: iconBox * 0.52, color: kAccent),
+                    IconBadge(
+                      icon: icon,
+                      color: colors.accent,
+                      size: compact
+                          ? IconBadge.illustrationCompact
+                          : IconBadge.illustration,
                     ),
-                    SizedBox(height: compact ? 16 : 40),
+                    compact ? Gap.vLg : Gap.vHuge,
                     Semantics(
                       header: true,
                       child: Text(
                         title,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: kTextPrimary,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: text.hero,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    Gap.vLg,
                     Text(
                       body,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: kTextSecondary,
-                        fontSize: 15,
-                        height: 1.6,
-                      ),
+                      style: text.bodyLarge.relaxed.tone(colors.textSecondary),
                     ),
                     if (note != null) ...[
-                      const SizedBox(height: 16),
+                      Gap.vLg,
                       Text(
                         note!,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: noteColor ?? kTextSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                        style: text.bodySmall.strong.tone(
+                          noteColor ?? colors.textSecondary,
                         ),
                       ),
                     ],
-                    if (footer != null) ...[
-                      const SizedBox(height: 24),
-                      footer!,
-                    ],
+                    if (footer != null) ...[Gap.vXxl, footer!],
                   ],
                 ),
               ),

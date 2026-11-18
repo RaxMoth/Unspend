@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unspend/core/storage_keys.dart';
 import 'package:unspend/features/app_blocker/data/repositories/profiles_repository.dart';
 import 'package:unspend/features/app_blocker/domain/entities/blocker_profile.dart';
 
@@ -40,7 +41,7 @@ void main() {
 
     expect(await repo.load(), isEmpty);
     expect(
-      prefs.getInt(ProfilesRepository.schemaVersionKey),
+      prefs.getInt(PrefKeys.profilesSchemaVersion),
       ProfilesRepository.currentSchemaVersion,
     );
   });
@@ -65,7 +66,7 @@ void main() {
 
     expect(loaded.single.name, 'Work');
     expect(prefs.getString('blocker_profiles_v2'), isNull);
-    expect(prefs.getString(ProfilesRepository.profilesKey), isNotNull);
+    expect(prefs.getString(PrefKeys.profiles), isNotNull);
   });
 
   test('migrates data stored under the v1 key', () async {
@@ -92,9 +93,8 @@ void main() {
     'does not re-run migration once the schema version is current',
     () async {
       final (repo, prefs) = await _repo({
-        ProfilesRepository.schemaVersionKey:
-            ProfilesRepository.currentSchemaVersion,
-        ProfilesRepository.profilesKey: _encode([work]),
+        PrefKeys.profilesSchemaVersion: ProfilesRepository.currentSchemaVersion,
+        PrefKeys.profiles: _encode([work]),
         'blocker_profiles_v2': _encode([evening]),
       });
 
@@ -106,9 +106,8 @@ void main() {
 
   test('corrupt JSON yields an empty list instead of throwing', () async {
     final (repo, _) = await _repo({
-      ProfilesRepository.schemaVersionKey:
-          ProfilesRepository.currentSchemaVersion,
-      ProfilesRepository.profilesKey: '{not json',
+      PrefKeys.profilesSchemaVersion: ProfilesRepository.currentSchemaVersion,
+      PrefKeys.profiles: '{not json',
     });
 
     expect(await repo.load(), isEmpty);
@@ -123,9 +122,8 @@ void main() {
 
   test('missing fields in stored JSON fall back to defaults', () async {
     final (repo, _) = await _repo({
-      ProfilesRepository.schemaVersionKey:
-          ProfilesRepository.currentSchemaVersion,
-      ProfilesRepository.profilesKey: '[{"id": "x"}]',
+      PrefKeys.profilesSchemaVersion: ProfilesRepository.currentSchemaVersion,
+      PrefKeys.profiles: '[{"id": "x"}]',
     });
 
     final profile = (await repo.load()).single;

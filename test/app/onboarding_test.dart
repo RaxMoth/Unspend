@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unspend/config/router.dart';
-import 'package:unspend/core/providers.dart';
+import 'package:unspend/core/storage_keys.dart';
 import 'package:unspend/features/app_blocker/data/datasources/screen_time_datasource.dart';
 import 'package:unspend/features/app_blocker/presentation/providers/device_mode_provider.dart';
 
@@ -65,7 +65,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(app.s.profilesSectionTitle), findsOneWidget);
     expect(find.text(app.s.authBannerTitle), findsNothing);
-    expect(app.prefs.getBool(kHasSeenOnboardingKey), isTrue);
+    expect(app.prefs.getBool(PrefKeys.onboardingSeen), isTrue);
   });
 
   testWidgets('refused access is explained and can be postponed', (
@@ -125,7 +125,7 @@ void main() {
 
       await chooseChild(tester, app);
       expect(app.container.read(deviceModeProvider), DeviceMode.child);
-      expect(app.prefs.getString(DeviceModeNotifier.storageKey), 'child');
+      expect(app.prefs.getString(PrefKeys.deviceMode), 'child');
 
       await next(tester, app);
       expect(find.text(app.s.onboardingBody4Child), findsOneWidget);

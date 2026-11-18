@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
 import '../../domain/entities/blocker_profile.dart';
 import '../providers/profiles_provider.dart';
-import 'section_widgets.dart';
+import 'task_tile.dart';
 
 /// The tasks of a task-mode profile: tick them off, and while the profile
 /// is inactive add and remove them.
@@ -38,7 +38,7 @@ class _TaskListSectionState extends ConsumerState<TaskListSection> {
   void _addTask() {
     final title = _taskController.text.trim();
     if (title.isEmpty) return;
-    HapticFeedback.selectionClick();
+    AppHaptics.selection();
     _notifier.addTask(widget.profile.id, title);
     _taskController.clear();
   }
@@ -46,263 +46,136 @@ class _TaskListSectionState extends ConsumerState<TaskListSection> {
   @override
   Widget build(BuildContext context) {
     final s = S.current;
+    final colors = context.colors;
+    final text = context.text;
     final profile = widget.profile;
     final accent = widget.accent;
     final tasks = profile.tasks;
     final done = profile.doneTaskCount;
     final allDone = profile.allTasksDone;
-    final progressColor = allDone ? kSuccess : accent;
+    final progressColor = allDone ? colors.success : accent;
 
-    return SectionCard(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Row(
-                children: [
-                  Icon(Icons.checklist_rounded, color: accent, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      s.tasks,
-                      style: TextStyle(
-                        color: kTextPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.checklist_rounded,
+                      size: AppSizes.iconMd,
+                      color: colors.readable(accent),
                     ),
+                    Gap.hSm,
+                    Expanded(child: Text(s.tasks, style: text.label)),
+                    if (tasks.isNotEmpty)
+                      Semantics(
+                        label: s.tasksProgress(done, tasks.length),
+                        excludeSemantics: true,
+                        child: AppChip(
+                          label: '$done / ${tasks.length}',
+                          color: progressColor,
+                        ),
+                      ),
+                  ],
+                ),
+                Gap.vMd,
+                if (tasks.isNotEmpty)
+                  AppProgressBar(
+                    value: done / tasks.length,
+                    color: progressColor,
+                  )
+                else
+                  Text(
+                    s.emptyTasksHint,
+                    style: text.caption.tone(colors.textSecondary),
                   ),
-                  if (tasks.isNotEmpty)
-                    Semantics(
-                      label: s.tasksProgress(done, tasks.length),
-                      excludeSemantics: true,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: progressColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$done / ${tasks.length}',
-                          style: TextStyle(
-                            color: kReadable(progressColor),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              ],
             ),
-            if (tasks.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ExcludeSemantics(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: done / tasks.length,
-                      backgroundColor: kBorder,
-                      valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                      minHeight: 4,
-                    ),
-                  ),
-                ),
+          ),
+          Gap.vXs,
+          for (final task in tasks)
+            Padding(
+              padding: EdgeInsets.only(
+                right: profile.isActive ? AppSpacing.sm : 0,
               ),
-              const SizedBox(height: 4),
-            ] else
-              Padding(
-                padding: const EdgeInsets.only(top: 8, right: 8),
-                child: Text(
-                  s.emptyTasksHint,
-                  style: TextStyle(color: kTextSecondary, fontSize: 12),
-                ),
-              ),
-
-            for (final task in tasks)
-              _TaskRow(
+              child: TaskTile(
+                key: ValueKey(task.id),
                 task: task,
-                onToggle: () {
-                  HapticFeedback.selectionClick();
-                  _notifier.toggleTask(profile.id, task.id);
-                },
+                onToggle: () => _notifier.toggleTask(profile.id, task.id),
                 onDelete: profile.isActive
                     ? null
                     : () => _notifier.removeTask(profile.id, task.id),
               ),
-
-            if (!profile.isActive) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _taskController,
-                      style: TextStyle(color: kTextPrimary, fontSize: 14),
-                      textCapitalization: TextCapitalization.sentences,
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        hintText: s.addTaskHint,
-                        hintStyle: TextStyle(
-                          color: kTextSecondary,
-                          fontSize: 14,
-                        ),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                      ),
-                      onSubmitted: (_) => _addTask(),
+            ),
+          if (!profile.isActive) ...[
+            Gap.vSm,
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _taskController,
+                    style: text.body,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      hintText: s.addTaskHint,
+                      hintStyle: text.body.tone(colors.textSecondary),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.all(AppSpacing.md),
                     ),
+                    onSubmitted: (_) => _addTask(),
                   ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    tooltip: s.addTask,
-                    onPressed: _addTask,
-                    style: IconButton.styleFrom(
-                      backgroundColor: accent.withValues(alpha: 0.15),
-                      foregroundColor: accent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                ),
+                Gap.hXs,
+                IconButton(
+                  tooltip: s.addTask,
+                  onPressed: _addTask,
+                  style: IconButton.styleFrom(
+                    backgroundColor: accent.withValues(alpha: AppOpacity.tint),
+                    foregroundColor: colors.readable(accent),
+                    shape: AppRadius.controlShape,
+                  ),
+                  icon: const Icon(Icons.add_rounded),
+                ),
+              ],
+            ),
+          ] else if (tasks.isNotEmpty) ...[
+            Gap.vSm,
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: AppSizes.iconXs),
+                  Gap.hSm,
+                  Expanded(
+                    child: Text(
+                      allDone
+                          ? s.allTasksDoneNote
+                          : s.tasksRemainingNote(profile.pendingTaskCount),
+                      style: text.caption
+                          .tone(colors.textSecondary)
+                          .copyWith(fontStyle: FontStyle.italic),
                     ),
-                    icon: const Icon(Icons.add_rounded, size: 22),
                   ),
                 ],
               ),
-            ] else if (tasks.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 1),
-                      child: Icon(
-                        Icons.info_outline_rounded,
-                        color: kTextSecondary,
-                        size: 14,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        allDone
-                            ? s.allTasksDoneNote
-                            : s.tasksRemainingNote(profile.pendingTaskCount),
-                        style: TextStyle(
-                          color: kTextSecondary,
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TaskRow extends StatelessWidget {
-  const _TaskRow({
-    required this.task,
-    required this.onToggle,
-    required this.onDelete,
-  });
-
-  final BlockerTask task;
-  final VoidCallback onToggle;
-
-  /// Null hides the delete button (tasks are fixed while active).
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: MergeSemantics(
-            child: Semantics(
-              checked: task.isDone,
-              child: InkWell(
-                onTap: onToggle,
-                borderRadius: BorderRadius.circular(8),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  child: Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: task.isDone
-                              ? kSuccess.withValues(alpha: 0.2)
-                              : Colors.transparent,
-                          border: Border.all(
-                            color: task.isDone ? kSuccess : kTextSecondary,
-                            width: 1.5,
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: task.isDone
-                            ? const Icon(
-                                Icons.check_rounded,
-                                color: kSuccess,
-                                size: 16,
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Text(
-                            task.title,
-                            style: TextStyle(
-                              color: task.isDone
-                                  ? kTextSecondary
-                                  : kTextPrimary,
-                              fontSize: 14,
-                              decoration: task.isDone
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                              decorationColor: kTextSecondary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ),
-          ),
-        ),
-        if (onDelete != null)
-          IconButton(
-            tooltip: S.current.deleteTaskLabel(task.title),
-            onPressed: onDelete,
-            icon: Icon(Icons.close_rounded, color: kTextSecondary, size: 20),
-          )
-        else
-          const SizedBox(width: 8),
-      ],
+          ],
+        ],
+      ),
     );
   }
 }

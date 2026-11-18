@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
+import 'package:unspend/core/theme/theme.dart';
 
 import '../../domain/entities/blocker_profile.dart';
 
-/// Size of one option's tap target; the drawn swatch is smaller.
-const _targetSize = 48.0;
+/// Edge length of a colour swatch and of an icon tile. Both sit in a full
+/// size tap target.
+const double _swatchSize = 36;
+const double _iconTileSize = 44;
+
+/// Width of the ring around the selected colour.
+const double _selectedRingWidth = 2.5;
 
 /// Row of colour swatches for a profile's accent colour.
 class ProfileColorPicker extends StatelessWidget {
@@ -22,6 +26,7 @@ class ProfileColorPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Wrap(
       children: [
         for (final option in ProfileColor.palette)
@@ -30,25 +35,24 @@ class ProfileColorPicker extends StatelessWidget {
             selected: option.color.toARGB32() == selectedValue,
             onTap: () => onSelected(option.color.toARGB32()),
             builder: (selected) => AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 36,
-              height: 36,
+              duration: context.motion(AppDurations.fast),
+              width: _swatchSize,
+              height: _swatchSize,
               decoration: BoxDecoration(
                 color: option.color,
                 shape: BoxShape.circle,
                 border: selected
-                    ? Border.all(color: kTextPrimary, width: 2.5)
+                    ? Border.all(
+                        color: colors.textPrimary,
+                        width: _selectedRingWidth,
+                      )
                     : null,
               ),
               child: selected
                   ? Icon(
                       Icons.check_rounded,
-                      size: 18,
-                      color:
-                          ThemeData.estimateBrightnessForColor(option.color) ==
-                              Brightness.dark
-                          ? Colors.white
-                          : Colors.black,
+                      size: AppSizes.iconSm,
+                      color: colors.filled(option.color).onFill,
                     )
                   : null,
             ),
@@ -74,9 +78,10 @@ class ProfileIconPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Wrap(
-      spacing: 4,
-      runSpacing: 4,
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
       children: [
         for (final option in ProfileIcon.options)
           _Option(
@@ -84,18 +89,23 @@ class ProfileIconPicker extends StatelessWidget {
             selected: option.label == selectedLabel,
             onTap: () => onSelected(option.label),
             builder: (selected) => AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 44,
-              height: 44,
+              duration: context.motion(AppDurations.fast),
+              width: _iconTileSize,
+              height: _iconTileSize,
               decoration: BoxDecoration(
-                color: selected ? accent.withValues(alpha: 0.2) : kSurface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: selected ? accent : kBorder),
+                color: selected
+                    ? accent.withValues(alpha: AppOpacity.tint)
+                    : colors.surface,
+                borderRadius: AppRadius.control,
+                border: Border.all(
+                  color: selected ? colors.readable(accent) : colors.border,
+                ),
               ),
               child: Icon(
                 option.icon,
-                size: 22,
-                color: selected ? accent : kTextSecondary,
+                color: selected
+                    ? colors.readable(accent)
+                    : colors.textSecondary,
               ),
             ),
           ),
@@ -104,6 +114,7 @@ class ProfileIconPicker extends StatelessWidget {
   }
 }
 
+/// One selectable option in a full-size tap target.
 class _Option extends StatelessWidget {
   const _Option({
     required this.label,
@@ -120,7 +131,7 @@ class _Option extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     void select() {
-      HapticFeedback.selectionClick();
+      AppHaptics.selection();
       onTap();
     }
 
@@ -133,9 +144,8 @@ class _Option extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: select,
-        child: SizedBox(
-          width: _targetSize,
-          height: _targetSize,
+        child: SizedBox.square(
+          dimension: AppSizes.tapTarget,
           child: Center(child: builder(selected)),
         ),
       ),

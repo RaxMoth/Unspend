@@ -28,8 +28,14 @@ lib/
 ├── main_dev.dart             # development entrypoint (fake Screen Time)
 ├── bootstrap.dart, app.dart  # startup, MaterialApp, text-scale cap
 ├── config/                   # GoRouter (provider)
-├── core/                     # theme + colour tokens, strings (5 languages),
-│                             #   shared widgets, infrastructure providers
+├── core/
+│   ├── theme/                # design tokens: colour, type, spacing, shape,
+│   │                         #   motion, haptics, and the Material theme
+│   ├── widgets/              # shared components every screen is built from
+│   ├── constants/strings.dart  # all user-facing text, 5 languages
+│   ├── storage_keys.dart     # every key anything is stored under
+│   └── providers.dart        # infrastructure seams (prefs, clock, cooldown)
+├── dev/                      # demo data for the development entrypoint
 ├── features/app_blocker/
 │   ├── domain/               # BlockerProfile, ShieldPolicy (the blocking rule)
 │   ├── data/                 # ScreenTimeDatasource (interface, MethodChannel
@@ -92,6 +98,12 @@ that follows the same rule, with a 10-second cooldown:
 flutter run -t lib/main_dev.dart
 ```
 
+Add sample profiles (handy for screenshots):
+
+```bash
+flutter run -t lib/main_dev.dart --dart-define=DEMO=true
+```
+
 **On an iPhone** — the real thing:
 
 ```bash
@@ -118,6 +130,14 @@ after adding a Swift file under `ios/Shared`:
 cd ios && bundle exec ruby ../tools/ios_project.rb
 ```
 
+## Design system
+
+Screens are composed from tokens (`lib/core/theme/`) and shared components
+(`lib/core/widgets/`); they contain no colours, sizes or text styles of their
+own. [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) is the guide: the
+tokens, the components, the accessibility requirements and how to add a
+screen.
+
 ## Tests
 
 ```bash
@@ -128,9 +148,12 @@ flutter test integration_test -d <simulator>   # one end-to-end run
 
 - `test/app/responsive_layout_test.dart` pumps every screen, sheet and dialog
   on the smallest and largest iPhones, portrait and landscape, at default and
-  largest text size, in all five languages, and fails on any layout error.
+  largest supported text size (2×), in all five languages, and fails on any
+  layout error.
 - `test/app/accessibility_test.dart` checks tap-target size, labels and text
-  contrast in both themes.
+  contrast in all four themes (light, dark, each with increased contrast).
+- `test/app/robustness_test.dart` covers what must not break the app: double
+  taps, a Keychain that cannot be read, errors nobody planned for.
 - `test/presentation/profiles_notifier_test.dart` covers every rule
   combination against the fake Screen Time.
 

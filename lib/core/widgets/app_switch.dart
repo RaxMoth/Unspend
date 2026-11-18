@@ -1,15 +1,15 @@
 import 'package:flutter/cupertino.dart';
 
-import '../theme/design_tokens.dart';
+import '../theme/theme.dart';
 
-/// The app's on/off switch: an iOS switch with a tap target of at least
-/// 48 × 48 points and a single, labelled accessibility node.
+/// The app's on/off switch: an iOS switch with a full-size tap target and a
+/// single, labelled accessibility node.
 class AppSwitch extends StatelessWidget {
   const AppSwitch({
     super.key,
     required this.value,
     required this.onChanged,
-    this.activeColor = kAccent,
+    this.activeColor,
     this.semanticLabel,
   });
 
@@ -17,11 +17,14 @@ class AppSwitch extends StatelessWidget {
 
   /// Null disables the switch.
   final ValueChanged<bool>? onChanged;
-  final Color activeColor;
+
+  /// Track colour when on; the brand colour when null.
+  final Color? activeColor;
   final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final enabled = onChanged != null;
     return Semantics(
       container: true,
@@ -32,19 +35,22 @@ class AppSwitch extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: enabled ? () => onChanged!(!value) : null,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 56, minHeight: 48),
+          constraints: const BoxConstraints(
+            minWidth: AppSizes.tapTarget + AppSpacing.sm,
+            minHeight: AppSizes.tapTarget,
+          ),
           child: Center(
             widthFactor: 1,
             heightFactor: 1,
             // Purely visual: taps and accessibility are handled above so the
-            // whole 48pt area responds.
+            // whole target responds.
             child: ExcludeSemantics(
               child: IgnorePointer(
                 child: CupertinoSwitch(
                   value: value,
                   onChanged: enabled ? (_) {} : null,
-                  activeTrackColor: activeColor,
-                  inactiveTrackColor: kBorder,
+                  activeTrackColor: activeColor ?? colors.accent,
+                  inactiveTrackColor: colors.border,
                 ),
               ),
             ),

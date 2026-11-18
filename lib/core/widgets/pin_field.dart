@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../constants/strings.dart';
-import '../theme/design_tokens.dart';
+import '../theme/theme.dart';
 
 /// A text field for a PIN, hidden by default with a show/hide button.
 class PinField extends StatefulWidget {
@@ -43,17 +43,15 @@ class _PinFieldState extends State<PinField> {
       keyboardType: TextInputType.visiblePassword,
       textInputAction: widget.textInputAction,
       onSubmitted: widget.onSubmitted,
-      style: TextStyle(color: kTextPrimary, fontSize: 16),
+      style: context.text.bodyLarge,
       decoration: InputDecoration(
         labelText: widget.label,
         errorText: widget.errorText,
-        errorMaxLines: 3,
         suffixIcon: IconButton(
           tooltip: _obscured ? S.current.showPin : S.current.hidePin,
           icon: Icon(
             _obscured ? Icons.visibility_off : Icons.visibility,
-            color: kTextSecondary,
-            size: 20,
+            size: AppSizes.iconMd,
           ),
           onPressed: () => setState(() => _obscured = !_obscured),
         ),

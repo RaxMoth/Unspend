@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
+import 'package:unspend/core/theme/theme.dart';
 import 'package:unspend/features/app_blocker/data/datasources/screen_time_datasource.dart';
 
 import '../support/app_harness.dart';
@@ -11,8 +12,8 @@ import '../support/app_harness.dart';
 /// all five languages. A scene fails when Flutter reports a layout problem
 /// (overflow, unbounded size, …) in any combination.
 ///
-/// The system text scale is set to 3×; the app caps it at 1.6×, so this also
-/// proves the cap.
+/// The system text scale is set to 3×; the app caps it at
+/// [AppTextScale.max], so this also proves the cap.
 ///
 /// The check is stricter than a real device: the test font's glyphs are a
 /// full em wide, about twice the width of the system font. A row that fits
@@ -35,27 +36,11 @@ String _describe(FlutterErrorDetails details) {
 
 /// Flings the scroll view in front (a sheet's, if one is open) to its end,
 /// so content below the fold is laid out too.
-Future<void> _scrollThrough(WidgetTester tester) async {
-  final verticals = find
-      .byWidgetPredicate(
-        (widget) =>
-            widget is Scrollable && widget.axisDirection == AxisDirection.down,
-      )
-      .hitTestable();
-  // Text fields contain small scrollables of their own; the screen's is
-  // the largest one that can be touched.
-  Element? target;
-  var largest = 0.0;
-  for (final element in verticals.evaluate()) {
-    final size = element.size;
-    if (size != null && size.width * size.height > largest) {
-      largest = size.width * size.height;
-      target = element;
-    }
-  }
-  if (target == null) return;
+Future<void> _scrollThrough(WidgetTester tester, AppHarness app) async {
+  final scrollable = app.frontScrollable;
+  if (scrollable.evaluate().isEmpty) return;
   await tester.fling(
-    find.byElementPredicate((element) => element == target),
+    scrollable,
     const Offset(0, -3000),
     6000,
     warnIfMissed: false,
@@ -125,10 +110,10 @@ void main() {
     auth: ScreenTimeAuthStatus.notDetermined,
     run: (tester, app) async {
       for (var page = 0; page < 4; page++) {
-        await _scrollThrough(tester);
+        await _scrollThrough(tester, app);
         await app.tap(find.text(app.s.next));
       }
-      await _scrollThrough(tester);
+      await _scrollThrough(tester, app);
     },
   );
 
@@ -142,7 +127,7 @@ void main() {
         await app.tap(find.text(app.s.next));
       }
       await app.tap(find.text(app.s.authAllow));
-      await _scrollThrough(tester);
+      await _scrollThrough(tester, app);
     },
   );
 
@@ -159,25 +144,22 @@ void main() {
       await app.tap(find.bySemanticsLabel(RegExp('^${app.s.modeChildTitle}')));
       await app.tap(find.text(app.s.next));
       await app.tap(find.text(app.s.authAllow));
-      await _scrollThrough(tester);
+      await _scrollThrough(tester, app);
     },
   );
 
   _matrix(
     'dashboard without profiles',
     withProfiles: false,
-    run: (tester, app) => _scrollThrough(tester),
+    run: _scrollThrough,
   );
 
-  _matrix(
-    'dashboard with profiles',
-    run: (tester, app) => _scrollThrough(tester),
-  );
+  _matrix('dashboard with profiles', run: _scrollThrough);
 
   _matrix(
     'dashboard with the Screen Time banner',
     auth: ScreenTimeAuthStatus.denied,
-    run: (tester, app) => _scrollThrough(tester),
+    run: _scrollThrough,
   );
 
   _matrix(
@@ -189,7 +171,7 @@ void main() {
     'settings sheet',
     run: (tester, app) async {
       await app.tap(find.byTooltip(app.s.settings));
-      await _scrollThrough(tester);
+      await _scrollThrough(tester, app);
     },
   );
 
@@ -252,7 +234,7 @@ void main() {
       ]) {
         await app.tap(find.bySemanticsLabel(RegExp('^$rule')));
       }
-      await _scrollThrough(tester);
+      await _scrollThrough(tester, app);
     },
   );
 
@@ -260,7 +242,7 @@ void main() {
     'profile screen, active',
     run: (tester, app) async {
       await app.open(AppRoutes.profile('social'));
-      await _scrollThrough(tester);
+      await _scrollThrough(tester, app);
     },
   );
 

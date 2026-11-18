@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:unspend/core/storage_keys.dart';
 
 import '../../../../core/providers.dart';
 import '../../data/datasources/screen_time_datasource.dart';
@@ -26,11 +27,11 @@ final deviceModeProvider = NotifierProvider<DeviceModeNotifier, DeviceMode>(
 );
 
 class DeviceModeNotifier extends Notifier<DeviceMode> {
-  static const storageKey = 'device_mode';
-
   @override
   DeviceMode build() {
-    final stored = ref.watch(sharedPreferencesProvider).getString(storageKey);
+    final stored = ref
+        .watch(sharedPreferencesProvider)
+        .getString(PrefKeys.deviceMode);
     return DeviceMode.values.firstWhere(
       (mode) => mode.name == stored,
       orElse: () => DeviceMode.personal,
@@ -39,6 +40,8 @@ class DeviceModeNotifier extends Notifier<DeviceMode> {
 
   Future<void> set(DeviceMode mode) async {
     state = mode;
-    await ref.read(sharedPreferencesProvider).setString(storageKey, mode.name);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setString(PrefKeys.deviceMode, mode.name);
   }
 }

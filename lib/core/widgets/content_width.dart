@@ -2,12 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
-/// Widest the app's content gets. A phone in landscape is far wider than a
-/// comfortable line of text, so content is centred instead of stretched.
-const kMaxContentWidth = 560.0;
+import '../theme/theme.dart';
 
 /// Builds its child with the horizontal inset that keeps content at most
-/// [kMaxContentWidth] wide and at least [minimum] away from the edges.
+/// [AppSizes.maxContentWidth] wide and at least [minimum] away from the
+/// edges.
 ///
 /// The scroll view itself stays full width (so it can be dragged anywhere);
 /// only its content is inset:
@@ -21,7 +20,11 @@ const kMaxContentWidth = 560.0;
 /// )
 /// ```
 class ContentGutter extends StatelessWidget {
-  const ContentGutter({super.key, this.minimum = 20, required this.builder});
+  const ContentGutter({
+    super.key,
+    this.minimum = AppInsets.screenGutter,
+    required this.builder,
+  });
 
   final double minimum;
   final Widget Function(BuildContext context, double gutter) builder;
@@ -30,7 +33,7 @@ class ContentGutter extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) => builder(
       context,
-      math.max(minimum, (constraints.maxWidth - kMaxContentWidth) / 2),
+      math.max(minimum, (constraints.maxWidth - AppSizes.maxContentWidth) / 2),
     ),
   );
 }

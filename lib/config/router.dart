@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/providers.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
+import 'package:unspend/core/storage_keys.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 import 'package:unspend/features/app_blocker/presentation/pages/dashboard_screen.dart';
 import 'package:unspend/features/app_blocker/presentation/pages/profile_detail_screen.dart';
 import 'package:unspend/features/onboarding/presentation/pages/onboarding_screen.dart';
@@ -21,7 +23,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: AppRoutes.dashboard,
     redirect: (context, state) {
-      final seen = prefs.getBool(kHasSeenOnboardingKey) ?? false;
+      final seen = prefs.getBool(PrefKeys.onboardingSeen) ?? false;
       final onOnboarding = state.matchedLocation == AppRoutes.onboarding;
       if (!seen && !onOnboarding) return AppRoutes.onboarding;
       if (seen && onOnboarding) return AppRoutes.dashboard;
@@ -55,38 +57,37 @@ class _NotFoundPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.explore_off_rounded,
-                  size: 56,
-                  color: kTextSecondary,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  S.current.pageNotFound,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: kTextPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppSizes.maxContentWidth,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.explore_off_rounded,
+                    size: AppSizes.iconIllustration,
                   ),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: () => context.go(AppRoutes.dashboard),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(S.current.goHome),
+                  Gap.vLg,
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      S.current.pageNotFound,
+                      textAlign: TextAlign.center,
+                      style: context.text.title,
+                    ),
                   ),
-                ),
-              ],
+                  Gap.vXxl,
+                  AppButton.primary(
+                    label: S.current.goHome,
+                    onPressed: () => context.go(AppRoutes.dashboard),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

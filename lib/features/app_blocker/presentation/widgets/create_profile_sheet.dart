@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/app_sheet.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
+
+import '../../domain/entities/blocker_profile.dart';
 
 /// Asks for the name of a new profile. Returns the name, or null when the
 /// sheet was dismissed.
@@ -36,40 +38,31 @@ class _CreateProfileFormState extends State<_CreateProfileForm> {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.current;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          S.current.createProfileDescription,
-          style: TextStyle(color: kTextSecondary, fontSize: 13),
+          s.createProfileDescription,
+          style: context.text.bodySmall.tone(context.colors.textSecondary),
         ),
-        const SizedBox(height: 20),
+        Gap.vXl,
         TextField(
           controller: _controller,
           autofocus: true,
-          maxLength: 40,
-          style: TextStyle(color: kTextPrimary, fontSize: 16),
+          maxLength: BlockerProfile.maxNameLength,
+          style: context.text.bodyLarge,
           textCapitalization: TextCapitalization.words,
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(
-            hintText: S.current.profileNameHint,
-            hintStyle: TextStyle(
-              color: kTextSecondary.withValues(alpha: 0.6),
-              fontSize: 15,
-            ),
+            hintText: s.profileNameHint,
             counterText: '',
           ),
           onSubmitted: (_) => _submit(),
         ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: _submit,
-          child: Text(
-            S.current.create,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-        ),
+        Gap.vLg,
+        AppButton.primary(label: s.create, onPressed: _submit),
       ],
     );
   }

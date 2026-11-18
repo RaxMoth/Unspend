@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unspend/app.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/providers.dart';
+import 'package:unspend/core/theme/theme.dart';
 
 /// Starts the app. [overrides] replace infrastructure providers; the
 /// development entrypoint (`main_dev.dart`) uses them to run without the
@@ -15,7 +16,7 @@ Future<void> bootstrap({List<Override> overrides = const []}) async {
   WidgetsFlutterBinding.ensureInitialized();
   await S.init();
 
-  // An uncaught error should be logged, not take the app down.
+  // An uncaught error is logged; it must not take the app down.
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint('[FlutterError] ${details.exceptionAsString()}');
@@ -25,7 +26,8 @@ Future<void> bootstrap({List<Override> overrides = const []}) async {
     return true;
   };
   if (kReleaseMode) {
-    // The default is a grey box; say something instead.
+    // A widget that fails to build shows a short notice instead of the
+    // default grey box.
     ErrorWidget.builder = (details) => const _BrokenWidgetNotice();
   }
 
@@ -44,20 +46,22 @@ Future<void> bootstrap({List<Override> overrides = const []}) async {
   );
 }
 
-/// Shown in release builds in place of a widget that failed to build.
+/// Shown in release builds in place of a widget that failed to build. It
+/// may appear anywhere in the tree, so it relies on nothing above it.
 class _BrokenWidgetNotice extends StatelessWidget {
   const _BrokenWidgetNotice();
 
   @override
   Widget build(BuildContext context) {
+    const colors = AppColors.dark;
     return Container(
       alignment: Alignment.center,
-      padding: const EdgeInsets.all(16),
+      padding: AppInsets.card,
       child: Text(
         S.current.errorTryAgain,
         textAlign: TextAlign.center,
         textDirection: TextDirection.ltr,
-        style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
+        style: AppTextStyles.of(colors).body.tone(colors.textSecondary),
       ),
     );
   }

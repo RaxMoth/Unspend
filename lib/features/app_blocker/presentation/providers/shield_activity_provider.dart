@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:unspend/core/storage_keys.dart';
 
 import '../../../../core/providers.dart';
 import '../../../../core/time/day_key.dart';
@@ -15,14 +16,14 @@ final shieldActivityProvider =
     );
 
 class ShieldActivityNotifier extends Notifier<Map<String, int>> {
-  static const storageKey = 'shield_daily_log';
-
   /// Older entries are dropped to keep storage bounded.
   static const retention = Duration(days: 180);
 
   @override
   Map<String, int> build() {
-    final raw = ref.watch(sharedPreferencesProvider).getString(storageKey);
+    final raw = ref
+        .watch(sharedPreferencesProvider)
+        .getString(PrefKeys.shieldDailyLog);
     if (raw == null) return const {};
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
@@ -49,6 +50,6 @@ class ShieldActivityNotifier extends Notifier<Map<String, int>> {
     state = log;
     await ref
         .read(sharedPreferencesProvider)
-        .setString(storageKey, jsonEncode(log));
+        .setString(PrefKeys.shieldDailyLog, jsonEncode(log));
   }
 }

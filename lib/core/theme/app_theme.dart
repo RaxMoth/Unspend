@@ -1,208 +1,167 @@
 import 'package:flutter/material.dart';
 
-import 'design_tokens.dart';
+import 'app_colors.dart';
+import 'app_radius.dart';
+import 'app_sizes.dart';
+import 'app_spacing.dart';
+import 'app_typography.dart';
 
-/// App Theme Configuration — light & dark variants.
-class AppTheme {
-  AppTheme._();
+/// Builds the Material theme from the design tokens, so Flutter's own
+/// widgets (buttons, fields, dialogs, sheets, snack bars) look like the
+/// rest of the app without per-widget styling.
+abstract final class AppTheme {
+  static final light = _build(AppColors.light);
+  static final dark = _build(AppColors.dark);
+  static final lightHighContrast = _build(AppColors.lightHighContrast);
+  static final darkHighContrast = _build(AppColors.darkHighContrast);
 
-  // ── Dark Theme ─────────────────────────────────────────────────────────
-  static ThemeData get darkTheme {
-    const bg = Color(0xFF0D0D0D);
-    const surface = Color(0xFF1A1A1A);
-    const border = Color(0xFF2A2A2A);
-    const accent = Color(0xFFE53935);
-    const textPrimary = Color(0xFFFFFFFF);
-    const textSecondary = Color(0xFF9E9E9E);
-    const radius = 16.0;
-
-    return _buildTheme(
-      brightness: Brightness.dark,
-      bg: bg,
-      surface: surface,
-      border: border,
-      accent: accent,
-      textPrimary: textPrimary,
-      textSecondary: textSecondary,
-      radius: radius,
+  static ThemeData _build(AppColors colors) {
+    final text = AppTextStyles.of(colors);
+    final accentText = colors.accentText;
+    final fieldBorder = OutlineInputBorder(
+      borderRadius: AppRadius.control,
+      borderSide: BorderSide(color: colors.border),
     );
-  }
-
-  // ── Light Theme ────────────────────────────────────────────────────────
-  static ThemeData get lightTheme {
-    const bg = Color(0xFFF5F5F5);
-    const surface = Color(0xFFFFFFFF);
-    const border = Color(0xFFE0E0E0);
-    const accent = Color(0xFFE53935);
-    const textPrimary = Color(0xFF1A1A1A);
-    const textSecondary = Color(0xFF666666);
-    const radius = 16.0;
-
-    return _buildTheme(
-      brightness: Brightness.light,
-      bg: bg,
-      surface: surface,
-      border: border,
-      accent: accent,
-      textPrimary: textPrimary,
-      textSecondary: textSecondary,
-      radius: radius,
-    );
-  }
-
-  // ── Shared builder ─────────────────────────────────────────────────────
-  static ThemeData _buildTheme({
-    required Brightness brightness,
-    required Color bg,
-    required Color surface,
-    required Color border,
-    required Color accent,
-    required Color textPrimary,
-    required Color textSecondary,
-    required double radius,
-  }) {
-    final isDark = brightness == Brightness.dark;
-    // The accent as text has to be readable on this theme's surfaces,
-    // including tinted cards; the border colour is the hardest of them.
-    final accentText = readableOn(accent, border);
 
     return ThemeData(
       useMaterial3: true,
-      brightness: brightness,
-      scaffoldBackgroundColor: bg,
+      brightness: colors.brightness,
+      extensions: [colors, text],
+      scaffoldBackgroundColor: colors.background,
+      splashFactory: InkSparkle.splashFactory,
       colorScheme: ColorScheme(
-        brightness: brightness,
-        primary: accent,
-        onPrimary: isDark ? textPrimary : Colors.white,
-        secondary: accent,
-        onSecondary: isDark ? textPrimary : Colors.white,
-        surface: surface,
-        onSurface: textPrimary,
+        brightness: colors.brightness,
+        primary: colors.accent,
+        onPrimary: colors.onAccentFill,
+        secondary: colors.accent,
+        onSecondary: colors.onAccentFill,
+        surface: colors.surface,
+        onSurface: colors.textPrimary,
+        onSurfaceVariant: colors.textSecondary,
         error: accentText,
-        onError: Colors.white,
-        outline: border,
+        onError: colors.onAccentFill,
+        outline: colors.border,
+      ),
+      textTheme: TextTheme(
+        displaySmall: text.hero,
+        headlineSmall: text.screenTitle,
+        titleLarge: text.title,
+        titleMedium: text.heading,
+        titleSmall: text.subheading,
+        bodyLarge: text.bodyLarge,
+        bodyMedium: text.body,
+        bodySmall: text.bodySmall.tone(colors.textSecondary),
+        labelLarge: text.label,
+        labelSmall: text.caption,
+      ),
+      iconTheme: IconThemeData(
+        color: colors.textSecondary,
+        size: AppSizes.iconLg,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: bg,
-        foregroundColor: textPrimary,
+        backgroundColor: colors.background,
+        foregroundColor: colors.textPrimary,
         elevation: 0,
         centerTitle: true,
       ),
-      cardTheme: CardThemeData(
-        color: surface,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radius),
-          side: BorderSide(color: border),
-        ),
+      dividerTheme: DividerThemeData(color: colors.border, thickness: 1),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: colors.accent,
+        linearTrackColor: colors.border,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: bg,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: border),
+        fillColor: colors.background,
+        border: fieldBorder,
+        enabledBorder: fieldBorder,
+        focusedBorder: fieldBorder.copyWith(
+          borderSide: BorderSide(color: colors.accent),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: border),
+        errorBorder: fieldBorder.copyWith(
+          borderSide: BorderSide(color: accentText),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: accent),
+        focusedErrorBorder: fieldBorder.copyWith(
+          borderSide: BorderSide(color: accentText, width: 2),
         ),
-        labelStyle: TextStyle(color: textSecondary, fontSize: 13),
-        errorStyle: TextStyle(color: accentText, fontSize: 12),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: kAccentFill,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
+        labelStyle: text.bodySmall.tone(colors.textSecondary),
+        hintStyle: text.bodyLarge.tone(colors.textSecondary),
+        errorStyle: text.caption.tone(accentText),
+        errorMaxLines: 3,
+        contentPadding: AppInsets.field,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: kAccentFill,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          backgroundColor: colors.accentFill,
+          foregroundColor: colors.onAccentFill,
+          disabledBackgroundColor: colors.border,
+          disabledForegroundColor: colors.textSecondary,
+          minimumSize: const Size.fromHeight(AppSizes.tapTarget),
+          padding: AppInsets.button,
+          shape: AppRadius.controlShape,
+          textStyle: text.subheading,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: accentText),
+        style: TextButton.styleFrom(
+          foregroundColor: accentText,
+          minimumSize: const Size(AppSizes.tapTarget, AppSizes.tapTarget),
+          shape: AppRadius.controlShape,
+          textStyle: text.body.strong,
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: colors.textSecondary,
+          minimumSize: const Size(AppSizes.tapTarget, AppSizes.tapTarget),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: colors.accentFill,
+        foregroundColor: colors.onAccentFill,
+        shape: AppRadius.cardShape,
+      ),
+      listTileTheme: ListTileThemeData(
+        tileColor: colors.background,
+        selectedTileColor: colors.background,
+        iconColor: colors.textSecondary,
+        textColor: colors.textPrimary,
+        titleTextStyle: text.bodyLarge,
+        subtitleTextStyle: text.caption.tone(colors.textSecondary),
+        shape: AppRadius.controlShape,
+        minTileHeight: AppSizes.tapTarget,
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(radius)),
-        ),
+        backgroundColor: colors.surface,
+        modalBackgroundColor: colors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: AppRadius.sheetShape,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: surface,
+        backgroundColor: colors.surface,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radius),
-          side: BorderSide(color: border),
+          borderRadius: AppRadius.card,
+          side: BorderSide(color: colors.border),
         ),
-        titleTextStyle: TextStyle(
-          color: textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
+        titleTextStyle: text.heading,
+        contentTextStyle: text.body.tone(colors.textSecondary),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: colors.surface,
+        contentTextStyle: text.body,
+        actionTextColor: accentText,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadius.control,
+          side: BorderSide(color: colors.border),
         ),
       ),
-      textTheme: TextTheme(
-        displayLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
-          color: textPrimary,
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: colors.textPrimary,
+          borderRadius: AppRadius.chip,
         ),
-        displayMedium: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: textPrimary,
-        ),
-        displaySmall: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: textPrimary,
-        ),
-        headlineSmall: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: textPrimary,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: textPrimary,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-        ),
-        titleSmall: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-        ),
-        bodyLarge: TextStyle(fontSize: 16, color: textPrimary),
-        bodyMedium: TextStyle(fontSize: 14, color: textPrimary),
-        bodySmall: TextStyle(fontSize: 12, color: textSecondary),
-        labelLarge: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: textPrimary,
-        ),
+        textStyle: text.caption.tone(colors.background),
       ),
     );
   }

@@ -1,55 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/app_switch.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
 import '../../domain/entities/blocker_profile.dart';
 import '../profile_formatters.dart';
 import '../providers/current_minute_provider.dart';
 import '../providers/profiles_provider.dart';
-
-/// Small label naming one of a profile's rules.
-class ModeChip extends StatelessWidget {
-  const ModeChip({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.isActive,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    final chipColor = isActive ? kReadable(color) : kTextSecondary;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: chipColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: chipColor),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(color: chipColor, fontSize: 11),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+import 'task_tile.dart';
 
 /// A profile on the dashboard: what it blocks, whether it is active and
 /// blocking right now, a switch to turn it on or off and, in task mode,
@@ -66,9 +25,14 @@ class ProfileCard extends ConsumerWidget {
   final VoidCallback onTap;
   final VoidCallback onToggle;
 
+  /// Size of the "blocking / not blocking" indicator.
+  static const double _statusBadgeSize = 32;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = S.current;
+    final colors = context.colors;
+    final text = context.text;
     final now = ref.watch(currentMinuteProvider);
     final limitReached = ref.watch(
       shieldStatusProvider.select(
@@ -85,237 +49,154 @@ class ProfileCard extends ConsumerWidget {
     final status = profile.isActive
         ? '${s.statusActive}, $reason'
         : s.statusInactive;
+    final chipColor = profile.isActive ? profile.color : colors.textSecondary;
 
     void open() {
-      HapticFeedback.selectionClick();
+      AppHaptics.selection();
       onTap();
     }
 
-    return Material(
-      color: kSurface,
-      borderRadius: BorderRadius.circular(kRadius),
-      child: InkWell(
-        onTap: open,
-        excludeFromSemantics: true,
-        borderRadius: BorderRadius.circular(kRadius),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(kRadius),
-            border: Border.all(
-              color: profile.isActive
-                  ? profile.color.withValues(alpha: 0.4)
-                  : kBorder,
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return AppCard(
+      outline: profile.isActive
+          ? profile.color.withValues(alpha: AppOpacity.outline)
+          : null,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+      ),
+      onTap: open,
+      excludeTapFromSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Semantics(
-                      container: true,
-                      button: true,
-                      label: '${profile.name}, $subtitle, $status',
-                      excludeSemantics: true,
-                      onTap: open,
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: profile.isActive
-                                  ? profile.color.withValues(alpha: 0.15)
-                                  : kBorder,
-                              borderRadius: BorderRadius.circular(12),
+              Expanded(
+                child: Semantics(
+                  container: true,
+                  button: true,
+                  label: '${profile.name}, $subtitle, $status',
+                  excludeSemantics: true,
+                  onTap: open,
+                  child: Row(
+                    children: [
+                      IconBadge(
+                        icon: profile.profileIcon.icon,
+                        color: colors.readable(profile.color),
+                        background: profile.isActive
+                            ? profile.color.withValues(alpha: AppOpacity.tint)
+                            : null,
+                        muted: !profile.isActive,
+                      ),
+                      Gap.hMd,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              profile.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.subheading,
                             ),
-                            child: Icon(
-                              profile.profileIcon.icon,
-                              size: 24,
-                              color: profile.isActive
-                                  ? profile.color
-                                  : kTextSecondary,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  profile.name,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: kTextPrimary,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  subtitle,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: kTextSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (profile.isActive) ...[
-                            const SizedBox(width: 8),
-                            Tooltip(
-                              message: reason,
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: (blocking ? profile.color : kSuccess)
-                                      .withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  blocking
-                                      ? Icons.lock_rounded
-                                      : Icons.lock_open_rounded,
-                                  size: 18,
-                                  color: blocking ? profile.color : kSuccess,
-                                ),
-                              ),
+                            Gap.vXs,
+                            Text(
+                              subtitle,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.caption.tone(colors.textSecondary),
                             ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  AppSwitch(
-                    value: profile.isActive,
-                    activeColor: profile.color,
-                    semanticLabel:
-                        '${profile.isActive ? s.deactivateShield : s.activateShield}, ${profile.name}',
-                    onChanged: (_) => onToggle(),
-                  ),
-                ],
-              ),
-              if (!profile.isManualOnly) ...[
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ExcludeSemantics(
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        if (profile.scheduleEnabled)
-                          ModeChip(
-                            icon: Icons.schedule_rounded,
-                            label: s.scheduleTitle,
-                            color: profile.color,
-                            isActive: profile.isActive,
+                      if (profile.isActive) ...[
+                        Gap.hSm,
+                        Tooltip(
+                          message: reason,
+                          child: AnimatedSwitcher(
+                            duration: context.motion(AppDurations.medium),
+                            child: IconBadge(
+                              key: ValueKey(blocking),
+                              icon: blocking
+                                  ? Icons.lock_rounded
+                                  : Icons.lock_open_rounded,
+                              size: _statusBadgeSize,
+                              color: colors.readable(
+                                blocking ? profile.color : colors.success,
+                              ),
+                            ),
                           ),
-                        if (profile.usageLimitEnabled)
-                          ModeChip(
-                            icon: Icons.timer_rounded,
-                            label: s.usageLimitTitle,
-                            color: profile.color,
-                            isActive: profile.isActive,
-                          ),
-                        if (profile.taskModeEnabled)
-                          ModeChip(
-                            icon: Icons.checklist_rounded,
-                            label: s.taskModeTitle,
-                            color: profile.color,
-                            isActive: profile.isActive,
-                          ),
+                        ),
                       ],
-                    ),
+                    ],
                   ),
                 ),
-              ],
-              if (profile.taskModeEnabled && profile.tasks.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Divider(color: kBorder, height: 1),
-                ),
-                const SizedBox(height: 4),
-                for (final task in profile.tasks)
-                  _CardTaskRow(
-                    task: task,
-                    color: profile.color,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      ref
-                          .read(profilesProvider.notifier)
-                          .toggleTask(profile.id, task.id);
-                    },
-                  ),
-              ],
+              ),
+              Gap.hXs,
+              AppSwitch(
+                value: profile.isActive,
+                activeColor: profile.color,
+                semanticLabel:
+                    '${profile.isActive ? s.deactivateShield : s.activateShield}, ${profile.name}',
+                onChanged: (_) => onToggle(),
+              ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CardTaskRow extends StatelessWidget {
-  const _CardTaskRow({
-    required this.task,
-    required this.color,
-    required this.onTap,
-  });
-
-  final BlockerTask task;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return MergeSemantics(
-      child: Semantics(
-        checked: task.isDone,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 44),
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    task.isDone
-                        ? Icons.check_circle_rounded
-                        : Icons.radio_button_unchecked_rounded,
-                    size: 20,
-                    color: task.isDone ? color : kTextSecondary,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      task.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: task.isDone ? kTextSecondary : kTextPrimary,
-                        fontSize: 13,
-                        decoration: task.isDone
-                            ? TextDecoration.lineThrough
-                            : null,
-                        decorationColor: kTextSecondary,
+          if (!profile.isManualOnly) ...[
+            Gap.vSm,
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: ExcludeSemantics(
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    if (profile.scheduleEnabled)
+                      AppChip(
+                        icon: Icons.schedule_rounded,
+                        label: s.scheduleTitle,
+                        color: chipColor,
                       ),
-                    ),
-                  ),
-                ],
+                    if (profile.usageLimitEnabled)
+                      AppChip(
+                        icon: Icons.timer_rounded,
+                        label: s.usageLimitTitle,
+                        color: chipColor,
+                      ),
+                    if (profile.taskModeEnabled)
+                      AppChip(
+                        icon: Icons.checklist_rounded,
+                        label: s.taskModeTitle,
+                        color: chipColor,
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
+          ],
+          if (profile.taskModeEnabled && profile.tasks.isNotEmpty) ...[
+            Gap.vSm,
+            const Padding(
+              padding: EdgeInsets.only(right: AppSpacing.sm),
+              child: Divider(height: 1),
+            ),
+            Gap.vXs,
+            for (final task in profile.tasks)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                child: TaskTile(
+                  key: ValueKey(task.id),
+                  task: task,
+                  maxLines: 2,
+                  onToggle: () => ref
+                      .read(profilesProvider.notifier)
+                      .toggleTask(profile.id, task.id),
+                ),
+              ),
+          ],
+        ],
       ),
     );
   }

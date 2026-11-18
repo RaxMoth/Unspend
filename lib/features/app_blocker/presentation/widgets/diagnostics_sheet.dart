@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/app_sheet.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
 import '../../data/datasources/method_channel_screen_time_datasource.dart';
 import '../../data/datasources/screen_time_datasource.dart';
@@ -33,22 +33,19 @@ class _DiagnosticsViewState extends ConsumerState<_DiagnosticsView> {
 
   @override
   Widget build(BuildContext context) {
+    final text = context.text;
     return FutureBuilder<ScreenTimeDiagnostics>(
       future: _diagnostics,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Text(
             '${snapshot.error}',
-            style: TextStyle(color: kTextSecondary, fontSize: 13),
+            style: text.bodySmall.tone(context.colors.textSecondary),
           );
         }
         final data = snapshot.data;
-        if (data == null) {
-          return const Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(child: CircularProgressIndicator(color: kAccent)),
-          );
-        }
+        if (data == null) return const AppLoader();
+
         String list(List<String> items) =>
             items.isEmpty ? '–' : items.join('\n');
         final report = [
@@ -69,14 +66,9 @@ class _DiagnosticsViewState extends ConsumerState<_DiagnosticsView> {
           children: [
             SelectableText(
               report,
-              style: TextStyle(
-                color: kTextPrimary,
-                fontSize: 12,
-                fontFamily: 'Menlo',
-                height: 1.4,
-              ),
+              style: text.caption.copyWith(fontFamily: 'Menlo', height: 1.4),
             ),
-            const SizedBox(height: 12),
+            Gap.vMd,
             TextButton(
               onPressed: () => setState(() => _diagnostics = _load()),
               child: const Text('Refresh'),

@@ -28,6 +28,10 @@ enum ActivityNames {
     /// shields of all stores, so overlapping profiles block independently.
     static func store(_ profileId: String) -> String { "unspend." + profileId }
 
+    /// The single store used before each profile got its own. Only ever
+    /// cleared, never written.
+    static let legacyStore = "unspend"
+
     /// Store holding the "apps cannot be deleted" restriction. Profile ids
     /// are numeric, so the name cannot collide with a profile's store.
     static let removalLockStore = "unspend.guard"
