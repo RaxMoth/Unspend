@@ -170,7 +170,7 @@ Values with a meaning are named once, where they belong:
 | What | Where |
 |---|---|
 | Keys under which anything is stored | `lib/core/storage_keys.dart` (`PrefKeys`, `SecureKeys`) |
-| Method, argument, reply and error names of the native bridge | `screen_time_contract.dart` (Dart) and `ChannelContract.swift` — change both together |
+| Method, argument, reply and error names of the native bridge | `screen_time_contract.dart` (Dart), `ChannelContract.swift` (iOS) and `ChannelContract.kt` (Android) — change all three together |
 | Limits and defaults of a profile (name length, usage limit range, default schedule) | `BlockerProfile`, `ShieldPolicy` |
 | PIN rules (length, attempts, lockout) | `PinRepository` |
 | Cooldown length | `cooldownDurationProvider` |
@@ -197,6 +197,13 @@ if it is used for text.
 **A new stored value**: add its key to `storage_keys.dart`; never rename an
 existing key without a migration.
 
-**A new native call**: add the names to both contract files, the method to
-`ScreenTimeDatasource`, its implementation, the fake, and a case to
-`method_channel_screen_time_datasource_test.dart`.
+**A new native call**: add the names to the three contract files, the
+method to `ScreenTimeDatasource`, its implementation, the fake, a case to
+`method_channel_screen_time_datasource_test.dart`, and the handler on both
+native sides (`ScreenTimeChannel.swift`, `ScreenTimeChannel.kt`).
+
+**Something that differs between iPhone and Android**: read
+`appPlatformProvider` (never `Platform` or `defaultTargetPlatform` in a
+widget — tests could not switch it). Wording that names the platform's way
+of blocking gets an override in `strings_android.dart`; add a scene for the
+Android variant to the layout matrix.

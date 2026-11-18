@@ -200,11 +200,15 @@ class ProfilesNotifier extends AsyncNotifier<List<BlockerProfile>> {
     final profile = _find(id);
     if (profile == null || profile.isActive) return false;
 
-    final approved = await ref
-        .read(authorizationProvider.notifier)
-        .ensureApproved();
-    if (!approved) {
-      throw const ScreenTimeException(ScreenTimeError.notAuthorized);
+    // The iPhone's picker only opens with Screen Time access. Android's
+    // needs none; there, access is asked for when it is needed to block.
+    if (ref.read(appPlatformProvider) == AppPlatform.ios) {
+      final approved = await ref
+          .read(authorizationProvider.notifier)
+          .ensureApproved();
+      if (!approved) {
+        throw const ScreenTimeException(ScreenTimeError.notAuthorized);
+      }
     }
 
     final count = await _screenTime.pickApps(profileId: id, labels: labels);

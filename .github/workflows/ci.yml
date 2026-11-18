@@ -59,6 +59,37 @@ jobs:
           path: coverage/lcov.info
           if-no-files-found: error
 
+  android:
+    name: Android build & Kotlin tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Building first lets Flutter write the Gradle files the tests need.
+      - name: Build the app
+        run: flutter build apk --debug
+
+      - name: Kotlin rule-engine tests
+        working-directory: android
+        run: ./gradlew :app:testDebugUnitTest
+
   ios:
     name: iOS build & Swift tests
     runs-on: macos-15

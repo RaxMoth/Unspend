@@ -14,9 +14,9 @@ import 'package:unspend/features/app_blocker/presentation/providers/device_mode_
 import 'package:unspend/features/app_blocker/presentation/widgets/device_mode_options.dart';
 
 /// First-run introduction. Three pages explain the app, the fourth asks
-/// whose phone this is, and the last one asks for Screen Time access — for
-/// the owner, or for a parent on a child's phone. Access can be postponed;
-/// the dashboard keeps reminding.
+/// whose phone this is (iPhone only), and the last one asks for the access
+/// blocking needs — for the owner, or for a parent on a child's iPhone.
+/// Access can be postponed; the dashboard keeps reminding.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -25,9 +25,6 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  static const _pageCount = 5;
-  static const _permissionPage = _pageCount - 1;
-
   final _pageController = PageController();
   int _page = 0;
   bool _requesting = false;
@@ -69,8 +66,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (_requesting) return;
     setState(() => _requesting = true);
     try {
-      final result = await ref.read(authorizationProvider.notifier).request();
-      if (!mounted) return;
+      final result = await requestAccess(context, ref);
+      if (!mounted || result == null) return;
       setState(() {
         _refusal = result.approved
             ? null
@@ -86,7 +83,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget build(BuildContext context) {
     final s = S.current;
     final colors = context.colors;
-    final onPermissionPage = _page == _permissionPage;
+    final ios = ref.watch(appPlatformProvider) == AppPlatform.ios;
     final mode = ref.watch(deviceModeProvider);
     final approved =
         ref.watch(authorizationProvider).valueOrNull ==
@@ -108,12 +105,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         title: s.onboardingTitle3,
         body: s.onboardingBody3,
       ),
-      _OnboardingPage(
-        icon: Icons.family_restroom_rounded,
-        title: s.whoUsesTitle,
-        body: s.whoUsesBody,
-        footer: DeviceModeOptions(selected: mode, onSelected: _chooseMode),
-      ),
+      // Only the iPhone knows a child's device; Android skips the question.
+      if (ios)
+        _OnboardingPage(
+          icon: Icons.family_restroom_rounded,
+          title: s.whoUsesTitle,
+          body: s.whoUsesBody,
+          footer: DeviceModeOptions(selected: mode, onSelected: _chooseMode),
+        ),
       _OnboardingPage(
         icon: approved
             ? Icons.verified_user_rounded
@@ -126,6 +125,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         noteColor: approved ? colors.successText : colors.textSecondary,
       ),
     ];
+    final onPermissionPage = _page == pages.length - 1;
 
     final String primaryLabel;
     final VoidCallback primaryAction;
@@ -170,7 +170,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
             ExcludeSemantics(
-              child: _PageDots(count: _pageCount, current: _page),
+              child: _PageDots(count: pages.length, current: _page),
             ),
             Gap.vLg,
             ContentGutter(
@@ -179,7 +179,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 padding: EdgeInsets.fromLTRB(gutter, 0, gutter, AppSpacing.lg),
                 child: AppButton.primary(
                   label: primaryLabel,
-                  loading: _requesting,
+                  // The iPhone's prompt appears over the button. On Android
+                  // a dialog and then the system settings are in front, and
+                  // a spinner behind them would say nothing.
+                  loading: _requesting && ios,
                   onPressed: primaryAction,
                 ),
               ),

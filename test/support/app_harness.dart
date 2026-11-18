@@ -237,6 +237,7 @@ Future<AppHarness> pumpUnspend(
   DateTime? now,
   bool highContrast = false,
   bool reduceMotion = false,
+  AppPlatform platform = AppPlatform.ios,
   List<Override> overrides = const [],
 }) async {
   tester.view
@@ -269,6 +270,7 @@ Future<AppHarness> pumpUnspend(
   });
   FlutterSecureStorage.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
+  S.android = platform == AppPlatform.android;
   await S.setLocale(locale);
 
   late final AppHarness harness;
@@ -294,6 +296,7 @@ Future<AppHarness> pumpUnspend(
       clockProvider.overrideWithValue(() => harness.now),
       cooldownDurationProvider.overrideWithValue(cooldown),
       screenTimeDatasourceProvider.overrideWithValue(screenTime),
+      appPlatformProvider.overrideWithValue(platform),
       ...overrides,
     ],
   );

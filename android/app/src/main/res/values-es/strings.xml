@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown by Android on the screen where the blocker service is switched on. -->
+    <string name="blocker_service_summary">Muestra la pantalla de bloqueo cuando abres una app que uno de tus perfiles bloquea.</string>
+    <string name="blocker_service_description">Unspend usa este servicio para saber qué app abres. Así muestra la pantalla de bloqueo sobre las apps que bloquean tus perfiles activos y cuenta el tiempo de un límite diario.\n\nNo puede leer lo que hay en tu pantalla y nada sale de tu teléfono.</string>
+</resources>

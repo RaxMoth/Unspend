@@ -22,8 +22,11 @@ import 'package:unspend/features/app_blocker/data/datasources/screen_time_dataso
 ///   • `AUTH=denied`          the permission prompt is answered with "no"
 ///   • `CHILD_ACCOUNT=no`     the phone is not a child's (child mode fails)
 ///   • `COOLDOWN_SECONDS=300` cooldown length (default 10)
+///   • `NATIVE=true`          keep the real bridge to the OS and only
+///                            shorten the cooldown. For the Android
+///                            emulator, where blocking works for real.
 ///
-/// Nothing is blocked for real. Never ship this entrypoint.
+/// Without `NATIVE`, nothing is blocked for real. Never ship this entrypoint.
 Future<void> main() async {
   const demo = bool.fromEnvironment('DEMO');
   const auth = String.fromEnvironment('AUTH', defaultValue: 'approved');
@@ -35,6 +38,14 @@ Future<void> main() async {
     'COOLDOWN_SECONDS',
     defaultValue: _defaultCooldownSeconds,
   );
+
+  const cooldown = Duration(seconds: cooldownSeconds);
+  if (const bool.fromEnvironment('NATIVE')) {
+    await bootstrap(
+      overrides: [cooldownDurationProvider.overrideWithValue(cooldown)],
+    );
+    return;
+  }
 
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
@@ -55,9 +66,7 @@ Future<void> main() async {
   await bootstrap(
     overrides: [
       screenTimeDatasourceProvider.overrideWithValue(screenTime),
-      cooldownDurationProvider.overrideWithValue(
-        const Duration(seconds: cooldownSeconds),
-      ),
+      cooldownDurationProvider.overrideWithValue(cooldown),
     ],
   );
 }

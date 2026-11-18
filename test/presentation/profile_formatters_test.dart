@@ -25,6 +25,42 @@ void main() {
     expect(formatMinuteOfDay(23 * 60 + 59), '23:59');
   });
 
+  group('counting apps', () {
+    Future<List<String>> counts(String locale, List<int> numbers) async {
+      await S.setLocale(locale);
+      return [for (final n in numbers) S.current.appsSelected(n)];
+    }
+
+    test('one app is singular', () async {
+      expect(await counts('en', [1, 2]), ['1 app selected', '2 apps selected']);
+      expect(await counts('de', [1, 2]), [
+        '1 App ausgewählt',
+        '2 Apps ausgewählt',
+      ]);
+      expect((await counts('es', [1])).single, '1 app seleccionada');
+      expect((await counts('fr', [1])).single, '1 app sélectionnée');
+      await S.setLocale('en');
+      expect(S.current.subtitleApps(1), '1 app');
+      expect(S.current.subtitleApps(12), '12 apps');
+    });
+
+    test('Croatian has three forms', () async {
+      expect(await counts('hr', [1, 2, 4, 5, 11, 12, 21, 22, 25]), [
+        '1 aplikacija odabrana',
+        '2 aplikacije odabrane',
+        '4 aplikacije odabrane',
+        '5 aplikacija odabrano',
+        '11 aplikacija odabrano',
+        '12 aplikacija odabrano',
+        '21 aplikacija odabrana',
+        '22 aplikacije odabrane',
+        '25 aplikacija odabrano',
+      ]);
+      expect(S.current.subtitleApps(3), '3 aplikacije');
+      expect(S.current.subtitleApps(7), '7 aplikacija');
+    });
+  });
+
   group('subtitle', () {
     test('prompts for apps when none are selected', () {
       const p = BlockerProfile(id: 'p', name: 'P');

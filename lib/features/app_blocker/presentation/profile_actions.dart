@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
+import 'package:unspend/core/providers.dart';
 import 'package:unspend/core/theme/theme.dart';
 import 'package:unspend/core/widgets/widgets.dart';
 
@@ -46,6 +47,37 @@ String accessRefusedMessage(S s, AccessRequestResult result) =>
       _ => s.authDeniedHint,
     };
 
+/// Asks for the access blocking needs. Returns the outcome, or null when
+/// the user decided against it before the system was asked.
+///
+/// On the iPhone this is the system's Screen Time prompt. On Android the
+/// access is an accessibility service switched on in the system settings;
+/// the app first says what the service is used for and asks for a yes
+/// (Google Play requires this "prominent disclosure" inside the app).
+Future<AccessRequestResult?> requestAccess(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final authorization = ref.read(authorizationProvider.notifier);
+  if (ref.read(appPlatformProvider) == AppPlatform.android) {
+    // Nothing to ask if it has been switched on in the meantime.
+    await authorization.refresh();
+    final status = ref.read(authorizationProvider).valueOrNull;
+    if (status != ScreenTimeAuthStatus.approved) {
+      if (!context.mounted) return null;
+      final s = S.current;
+      final agreed = await showConfirmDialog(
+        context,
+        title: s.accessDisclosureTitle,
+        message: s.accessDisclosureBody,
+        confirmLabel: s.accessDisclosureAgree,
+      );
+      if (!agreed) return null;
+    }
+  }
+  return authorization.request();
+}
+
 void _showError(
   BuildContext context,
   WidgetRef ref,
@@ -57,15 +89,24 @@ void _showError(
   // Access may have been withdrawn in Settings since the last check.
   if (notAuthorized) authorization.refresh();
   if (!context.mounted) return;
+  final android = ref.read(appPlatformProvider) == AppPlatform.android;
   showAppSnackBar(
     context,
     screenTimeErrorMessage(S.current, exception),
-    action: notAuthorized
+    action: !notAuthorized
+        ? null
+        : android
+        // On Android the way to the system settings leads through the
+        // explanation of what the access is used for.
         ? SnackBarAction(
+            label: S.current.authAllow,
+            onPressed: () =>
+                runGuarded(context, () => requestAccess(context, ref)),
+          )
+        : SnackBarAction(
             label: S.current.openSettings,
             onPressed: authorization.openSettings,
-          )
-        : null,
+          ),
   );
 }
 

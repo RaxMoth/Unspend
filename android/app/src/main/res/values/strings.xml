@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown by Android on the screen where the blocker service is switched on. -->
+    <string name="blocker_service_summary">Shows the block screen when you open an app that one of your profiles blocks.</string>
+    <string name="blocker_service_description">Unspend uses this service to notice which app you open. That is how it shows the block screen over apps your active profiles block, and how it counts time for a daily limit.\n\nIt cannot read what is on your screen, and nothing leaves your phone.</string>
+
+    <!-- App picker; replaced by the app's own text in its current language. -->
+    <string name="picker_title">Choose apps</string>
+    <string name="picker_cancel">Cancel</string>
+    <string name="picker_save">Save</string>
+</resources>

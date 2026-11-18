@@ -1,18 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
+    <!-- The window while the process starts; replaced by the first Flutter frame. -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <!-- Show a splash screen on the activity. Automatically removed when
-             the Flutter engine draws its first frame -->
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
-    <!-- Theme applied to the Android Window as soon as the process has started.
-         This theme determines the color of the Android Window while your
-         Flutter UI initializes, as well as behind your Flutter UI while its
-         running.
 
-         This Theme is only used starting with V2 of Flutter's Android embedding. -->
+    <!-- The window behind the Flutter UI while it runs. -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="android:windowBackground">@color/unspend_background</item>
+    </style>
+
+    <!-- The app picker. -->
+    <style name="PickerTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/unspend_background</item>
+        <item name="android:colorAccent">@color/unspend_accent</item>
+        <item name="android:textColorPrimary">@color/unspend_text</item>
+        <item name="android:textColorSecondary">@color/unspend_text_secondary</item>
+        <item name="android:statusBarColor">@color/unspend_background</item>
+        <item name="android:navigationBarColor">@color/unspend_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <!-- The screen over a blocked app; dark in both modes. -->
+    <style name="BlockTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/unspend_block_background</item>
+        <item name="android:statusBarColor">@color/unspend_block_background</item>
+        <item name="android:navigationBarColor">@color/unspend_block_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

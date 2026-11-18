@@ -45,10 +45,20 @@ What ships, what is open, and what is queued. Last updated 2026-11-17.
 **Engineering**
 - A design system (`docs/DESIGN_SYSTEM.md`): colour, type, spacing, shape,
   motion and haptic tokens, and shared components every screen is built from.
-- 450 Dart tests, 42 Swift tests, one integration test; CI on every push.
+- 477 Dart tests, 42 Swift tests, 31 Kotlin tests, one integration test; CI
+  on every push (Dart, iOS build, Android build).
 - `lib/main_dev.dart` runs the whole app in the Simulator on a fake Screen Time.
 - Diagnostics screen for what the OS side did (Settings → press and hold the
   version line), with a copyable report.
+
+**Android (in progress)**
+- The app runs on Android 8+ with the same profiles and rules. Blocking is
+  done by an accessibility service the user switches on after an in-app
+  explanation; apps are chosen on the app's own picker screen.
+- Manual blocking, schedules, daily limits and task mode; the block screen
+  speaks the app's language.
+- Not on Android yet: uninstall protection, the child's-phone mode,
+  websites, Google Play release work. See the README's Android section.
 
 ## 🚧 Open before release
 

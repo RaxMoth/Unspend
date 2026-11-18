@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
+import 'package:unspend/core/providers.dart';
 import 'package:unspend/core/theme/theme.dart';
 import 'package:unspend/core/widgets/widgets.dart';
 import 'package:unspend/shared/providers/locale_provider.dart';
@@ -58,6 +59,7 @@ class _SettingsList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = S.current;
+    final ios = ref.watch(appPlatformProvider) == AppPlatform.ios;
     final languageName = _languages
         .firstWhere(
           (l) => l.code == ref.watch(localeProvider),
@@ -81,24 +83,28 @@ class _SettingsList extends ConsumerWidget {
           subtitle: s.changePinSubtitle,
           onTap: () => then(() => _changePin(host)),
         ),
-        _SettingsTile(
-          icon: Icons.family_restroom_rounded,
-          title: s.whoUsesLabel,
-          subtitle: ref.watch(deviceModeProvider) == DeviceMode.child
-              ? s.modeChildShort
-              : s.modePersonalShort,
-          showChevron: true,
-          onTap: () => then(() => _showDeviceMode(host)),
-        ),
-        _SettingsTile(
-          icon: Icons.gpp_good_outlined,
-          title: s.uninstallProtection,
-          subtitle: ref.watch(uninstallProtectionProvider)
-              ? s.stateOn
-              : s.stateOff,
-          showChevron: true,
-          onTap: () => then(() => _showUninstallProtection(host)),
-        ),
+        // A child's device and locking app removal are things only iOS
+        // offers.
+        if (ios) ...[
+          _SettingsTile(
+            icon: Icons.family_restroom_rounded,
+            title: s.whoUsesLabel,
+            subtitle: ref.watch(deviceModeProvider) == DeviceMode.child
+                ? s.modeChildShort
+                : s.modePersonalShort,
+            showChevron: true,
+            onTap: () => then(() => _showDeviceMode(host)),
+          ),
+          _SettingsTile(
+            icon: Icons.gpp_good_outlined,
+            title: s.uninstallProtection,
+            subtitle: ref.watch(uninstallProtectionProvider)
+                ? s.stateOn
+                : s.stateOff,
+            showChevron: true,
+            onTap: () => then(() => _showUninstallProtection(host)),
+          ),
+        ],
         _SettingsTile(
           icon: Icons.brightness_6_rounded,
           title: s.themeLabel,
