@@ -1,0 +1,5 @@
+// Base configuration for the app extension targets (FocusMonitor, AppBlocker,
+// ShieldConfigurationExtension). Pulls in FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER
+// so the extensions' version and build number always match the Runner app —
+// App Store Connect rejects or warns on a mismatch.
+#include "Generated.xcconfig"

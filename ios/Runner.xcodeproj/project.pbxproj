@@ -7,25 +7,43 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02FA42857051D0655B2F87B3 /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41EFEF71A3C0621B94A84632 /* SharedStore.swift */; };
+		036BCB80BA60A5355962F852 /* ShieldEnforcer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BBB8CBC873DE3B3A99D757 /* ShieldEnforcer.swift */; };
+		118C232E5E8D53E8B2B201C5 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 63D4D606D246CC56BB75B3EC /* PrivacyInfo.xcprivacy */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
+		1F612377D5FC0C475FF05C55 /* ShieldPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDC4C67DC32BBD590868EB7E /* ShieldPolicy.swift */; };
+		274040244FC1857DE5C3AAC4 /* ShieldPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDC4C67DC32BBD590868EB7E /* ShieldPolicy.swift */; };
+		300244C93490BFD6EFE6334E /* ShieldPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDC4C67DC32BBD590868EB7E /* ShieldPolicy.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		48A39E38BC5557B7DBFC5F2E /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41EFEF71A3C0621B94A84632 /* SharedStore.swift */; };
 		50B6A07B979A41F9EC566E70 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C0983506A4CC9CD0CFB0DEB1 /* Pods_RunnerTests.framework */; };
+		54F69383B79F00B958F092A4 /* ActivityNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B403A5896474967083D0076 /* ActivityNames.swift */; };
+		614C0F642BD9040CC6B5D08B /* DayKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98AB0FFDF17C1DF69A0FDF8A /* DayKey.swift */; };
 		65A689C5FFF9BB11878E747E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E2840D20013B8F381ADD5125 /* PrivacyInfo.xcprivacy */; };
+		724DBD89C79C596879C857E4 /* ActivityNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B403A5896474967083D0076 /* ActivityNames.swift */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
+		779FB84CAD46A3150217222D /* ProfileRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B95199B63072BE960E87299 /* ProfileRules.swift */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
+		9401524D1DE5AD50DEFFF3A0 /* ProfileRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B95199B63072BE960E87299 /* ProfileRules.swift */; };
+		9513FD735AB9EA72753C46D0 /* DayKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98AB0FFDF17C1DF69A0FDF8A /* DayKey.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		A3CD8CEBAE3BFBD0FDFD6F6C /* ActivityNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B403A5896474967083D0076 /* ActivityNames.swift */; };
 		AA0001011111111100000001 /* ScreenTimeChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001021111111100000001 /* ScreenTimeChannel.swift */; };
 		AA0001031111111100000001 /* AppPickerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0001041111111100000001 /* AppPickerViewController.swift */; };
 		AA0002011111111100000002 /* DeviceActivityMonitorExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002021111111100000002 /* DeviceActivityMonitorExtension.swift */; };
 		AA0002031111111100000002 /* FocusMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA0002041111111100000002 /* FocusMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B821CD83092F713DD7CC963A /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41EFEF71A3C0621B94A84632 /* SharedStore.swift */; };
+		BCDEA2C54169A7D3EE1BBB8D /* ProfileRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B95199B63072BE960E87299 /* ProfileRules.swift */; };
+		D85072C3CC066B49619341B6 /* ShieldEnforcer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BBB8CBC873DE3B3A99D757 /* ShieldEnforcer.swift */; };
 		DF93ECE02F60899A00C8C873 /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DF93ECDF2F60899A00C8C873 /* ManagedSettings.framework */; };
 		DF93ECE82F60899A00C8C873 /* AppBlocker.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DF93ECDE2F60899A00C8C873 /* AppBlocker.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DFF5015F2FB3343E009CAE5D /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DF93ECDF2F60899A00C8C873 /* ManagedSettings.framework */; };
 		DFF501612FB3343E009CAE5D /* ManagedSettingsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DFF501602FB3343E009CAE5D /* ManagedSettingsUI.framework */; };
 		DFF501692FB3343E009CAE5D /* ShieldConfigurationExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DFF5015E2FB3343E009CAE5D /* ShieldConfigurationExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E339EFB4D774504F3DA1AD7C /* DayKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98AB0FFDF17C1DF69A0FDF8A /* DayKey.swift */; };
 		F74B91E8A11160F41F38DB21 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 922C4133BC2136F32D5925F9 /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
 
@@ -94,7 +112,12 @@
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
+		41EFEF71A3C0621B94A84632 /* SharedStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SharedStore.swift; sourceTree = "<group>"; };
+		48BBB8CBC873DE3B3A99D757 /* ShieldEnforcer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShieldEnforcer.swift; sourceTree = "<group>"; };
+		5B95199B63072BE960E87299 /* ProfileRules.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileRules.swift; sourceTree = "<group>"; };
+		63D4D606D246CC56BB75B3EC /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6A412B692AD72F67003CBDA4 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
+		6B403A5896474967083D0076 /* ActivityNames.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActivityNames.swift; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -108,6 +131,7 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		98AB0FFDF17C1DF69A0FDF8A /* DayKey.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DayKey.swift; sourceTree = "<group>"; };
 		AA0001021111111100000001 /* ScreenTimeChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTimeChannel.swift; sourceTree = "<group>"; };
 		AA0001041111111100000001 /* AppPickerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPickerViewController.swift; sourceTree = "<group>"; };
 		AA0001061111111100000001 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
@@ -115,9 +139,11 @@
 		AA0001091111111100000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA0002021111111100000002 /* DeviceActivityMonitorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActivityMonitorExtension.swift; sourceTree = "<group>"; };
 		AA0002041111111100000002 /* FocusMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FocusMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = Extension.xcconfig; path = Flutter/Extension.xcconfig; sourceTree = "<group>"; };
 		BE71C4FD91EDC318E15E4EAF /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		C0983506A4CC9CD0CFB0DEB1 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		C790C4DD807431CC032D321E /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
+		CDC4C67DC32BBD590868EB7E /* ShieldPolicy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShieldPolicy.swift; sourceTree = "<group>"; };
 		DF93ECDE2F60899A00C8C873 /* AppBlocker.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AppBlocker.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DF93ECDF2F60899A00C8C873 /* ManagedSettings.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ManagedSettings.framework; path = System/Library/Frameworks/ManagedSettings.framework; sourceTree = SDKROOT; };
 		DFF5015E2FB3343E009CAE5D /* ShieldConfigurationExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShieldConfigurationExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -232,6 +258,29 @@
 			path = RunnerTests;
 			sourceTree = "<group>";
 		};
+		37A46116012DDA896D651441 /* ShieldCore */ = {
+			isa = PBXGroup;
+			children = (
+				6B403A5896474967083D0076 /* ActivityNames.swift */,
+				98AB0FFDF17C1DF69A0FDF8A /* DayKey.swift */,
+				5B95199B63072BE960E87299 /* ProfileRules.swift */,
+				41EFEF71A3C0621B94A84632 /* SharedStore.swift */,
+				CDC4C67DC32BBD590868EB7E /* ShieldPolicy.swift */,
+			);
+			name = ShieldCore;
+			path = Sources/ShieldCore;
+			sourceTree = "<group>";
+		};
+		6F3B14FF078F71D55E91D49F /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				37A46116012DDA896D651441 /* ShieldCore */,
+				48BBB8CBC873DE3B3A99D757 /* ShieldEnforcer.swift */,
+			);
+			name = Shared;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		9740EEB11CF90186004384FC /* Flutter */ = {
 			isa = PBXGroup;
 			children = (
@@ -239,6 +288,7 @@
 				9740EEB21CF90195004384FC /* Debug.xcconfig */,
 				7AFA3C8E1D35360C0083082E /* Release.xcconfig */,
 				9740EEB31CF90195004384FC /* Generated.xcconfig */,
+				AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */,
 			);
 			name = Flutter;
 			sourceTree = "<group>";
@@ -255,6 +305,7 @@
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				CEFD1BBE468458F35E28E267 /* Pods */,
 				1C9E2345DB51E0C157C45FAF /* Frameworks */,
+				6F3B14FF078F71D55E91D49F /* Shared */,
 			);
 			sourceTree = "<group>";
 		};
@@ -296,6 +347,7 @@
 				AA0002021111111100000002 /* DeviceActivityMonitorExtension.swift */,
 				AA0001081111111100000001 /* FocusMonitor.entitlements */,
 				AA0001091111111100000001 /* Info.plist */,
+				63D4D606D246CC56BB75B3EC /* PrivacyInfo.xcprivacy */,
 			);
 			path = FocusMonitor;
 			sourceTree = "<group>";
@@ -367,6 +419,7 @@
 			buildPhases = (
 				AA0004031111111100000004 /* Sources */,
 				AA0004041111111100000004 /* Frameworks */,
+				8C5180FAD19B189AC4B7E3AF /* Resources */,
 			);
 			buildRules = (
 			);
@@ -474,6 +527,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8C5180FAD19B189AC4B7E3AF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				118C232E5E8D53E8B2B201C5 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -618,6 +679,12 @@
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				AA0001011111111100000001 /* ScreenTimeChannel.swift in Sources */,
 				AA0001031111111100000001 /* AppPickerViewController.swift in Sources */,
+				724DBD89C79C596879C857E4 /* ActivityNames.swift in Sources */,
+				9513FD735AB9EA72753C46D0 /* DayKey.swift in Sources */,
+				9401524D1DE5AD50DEFFF3A0 /* ProfileRules.swift in Sources */,
+				48A39E38BC5557B7DBFC5F2E /* SharedStore.swift in Sources */,
+				1F612377D5FC0C475FF05C55 /* ShieldPolicy.swift in Sources */,
+				036BCB80BA60A5355962F852 /* ShieldEnforcer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -626,6 +693,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0002011111111100000002 /* DeviceActivityMonitorExtension.swift in Sources */,
+				54F69383B79F00B958F092A4 /* ActivityNames.swift in Sources */,
+				614C0F642BD9040CC6B5D08B /* DayKey.swift in Sources */,
+				BCDEA2C54169A7D3EE1BBB8D /* ProfileRules.swift in Sources */,
+				B821CD83092F713DD7CC963A /* SharedStore.swift in Sources */,
+				300244C93490BFD6EFE6334E /* ShieldPolicy.swift in Sources */,
+				D85072C3CC066B49619341B6 /* ShieldEnforcer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -640,6 +713,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A3CD8CEBAE3BFBD0FDFD6F6C /* ActivityNames.swift in Sources */,
+				E339EFB4D774504F3DA1AD7C /* DayKey.swift in Sources */,
+				779FB84CAD46A3150217222D /* ProfileRules.swift in Sources */,
+				02FA42857051D0655B2F87B3 /* SharedStore.swift in Sources */,
+				274040244FC1857DE5C3AAC4 /* ShieldPolicy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -737,7 +815,7 @@
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Profile;
@@ -885,7 +963,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -940,7 +1018,7 @@
 				SUPPORTED_PLATFORMS = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -1000,10 +1078,11 @@
 		};
 		AA0005011111111100000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = FocusMonitor/FocusMonitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 7DYCS4FJ2Y;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FocusMonitor/Info.plist;
@@ -1015,7 +1094,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime.FocusMonitor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1023,16 +1102,17 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
 		AA0005021111111100000002 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = FocusMonitor/FocusMonitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 7DYCS4FJ2Y;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FocusMonitor/Info.plist;
@@ -1044,22 +1124,23 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime.FocusMonitor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
 		AA0005031111111100000003 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = FocusMonitor/FocusMonitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 7DYCS4FJ2Y;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FocusMonitor/Info.plist;
@@ -1071,18 +1152,19 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime.FocusMonitor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Profile;
 		};
 		DF93ECEB2F60899A00C8C873 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -1093,7 +1175,7 @@
 				CODE_SIGN_ENTITLEMENTS = AppBlocker/AppBlocker.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 7DYCS4FJ2Y;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -1108,7 +1190,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime.AppBlocker;
@@ -1122,12 +1204,13 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
 		DF93ECEC2F60899A00C8C873 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -1138,7 +1221,7 @@
 				CODE_SIGN_ENTITLEMENTS = AppBlocker/AppBlocker.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 7DYCS4FJ2Y;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -1153,7 +1236,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime.AppBlocker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1164,12 +1247,13 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
 		DF93ECED2F60899A00C8C873 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -1180,7 +1264,7 @@
 				CODE_SIGN_ENTITLEMENTS = AppBlocker/AppBlocker.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 7DYCS4FJ2Y;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -1195,7 +1279,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime.AppBlocker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1206,12 +1290,13 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Profile;
 		};
 		DFF5016A2FB3343E009CAE5D /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -1222,7 +1307,7 @@
 				CODE_SIGN_ENTITLEMENTS = ShieldConfigurationExtension/ShieldConfigurationExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 7DYCS4FJ2Y;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -1237,7 +1322,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime.ShieldConfigurationExtension;
@@ -1250,12 +1335,13 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
 		DFF5016B2FB3343E009CAE5D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -1266,7 +1352,7 @@
 				CODE_SIGN_ENTITLEMENTS = ShieldConfigurationExtension/ShieldConfigurationExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 7DYCS4FJ2Y;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -1281,7 +1367,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime.ShieldConfigurationExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1291,12 +1377,13 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
 		DFF5016C2FB3343E009CAE5D /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA943ACF4A5A2569DCBBF302 /* Extension.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -1307,7 +1394,7 @@
 				CODE_SIGN_ENTITLEMENTS = ShieldConfigurationExtension/ShieldConfigurationExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 7DYCS4FJ2Y;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -1322,7 +1409,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.maxroth.backyourtime.ShieldConfigurationExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1332,7 +1419,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Profile;
 		};

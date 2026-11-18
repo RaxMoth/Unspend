@@ -5,12 +5,17 @@ iOS app blocker. Pick the apps that eat your day, set rules, get out of the way.
 Blocks are enforced by Apple's Family Controls + ManagedSettings frameworks
 — so they're real, not a willpower test. Profiles can stack four kinds of
 rules: a manual on/off, a daily time-of-day schedule, a daily usage budget,
-and a "task list must be done" gate. Settings are PIN-protected behind a
-5-minute cooldown.
+and a "task list must be done" gate. Lifting a block takes a 5-minute
+cooldown and a PIN.
+
+It works on your own iPhone (a trusted person holds the PIN) or on your
+child's iPhone (a parent approves it through Family Sharing, and iOS keeps
+the child from deleting it). While a block is running, apps cannot be
+deleted from the phone.
 
 | | |
 |---|---|
-| Platform | iOS 16+ |
+| Platform | iPhone, iOS 16+, portrait and landscape |
 | Languages | English · German · Spanish · French · Croatian |
 | Storage | 100% on-device. No accounts, no analytics, no network. |
 | PIN | SHA-256 + per-install salt, stored in iOS Keychain |
@@ -19,46 +24,118 @@ and a "task list must be done" gate. Settings are PIN-protected behind a
 
 ```
 lib/
-├── main.dart                 # entrypoint + global error handlers
-├── config/                   # GoRouter setup
-├── core/                     # theme, design tokens, i18n strings
-├── features/app_blocker/     # all domain logic
-│   ├── domain/entities/      # BlockerProfile, BlockerTask
-│   ├── data/datasources/     # ScreenTimeDatasource (MethodChannel bridge)
+├── main.dart                 # production entrypoint
+├── main_dev.dart             # development entrypoint (fake Screen Time)
+├── bootstrap.dart, app.dart  # startup, MaterialApp, text-scale cap
+├── config/                   # GoRouter (provider)
+├── core/                     # theme + colour tokens, strings (5 languages),
+│                             #   shared widgets, infrastructure providers
+├── features/app_blocker/
+│   ├── domain/               # BlockerProfile, ShieldPolicy (the blocking rule)
+│   ├── data/                 # ScreenTimeDatasource (interface, MethodChannel
+│   │                         #   implementation, in-memory fake), repositories
 │   └── presentation/         # screens, widgets, Riverpod providers
-└── shared/providers/         # locale + theme mode
+├── features/onboarding/
+└── shared/providers/         # language + theme mode
 
 ios/
-├── Runner/                   # main app (Flutter host + ScreenTimeChannel)
+├── Runner/                   # Flutter host, ScreenTimeChannel, app picker
 ├── FocusMonitor/             # DeviceActivityMonitor extension
-├── AppBlocker/               # ShieldAction extension (handles shield button taps)
-└── ShieldConfigurationExtension/  # Custom shield UI
+├── AppBlocker/               # ShieldAction extension (shield button)
+├── ShieldConfigurationExtension/  # text and look of the shield
+└── Shared/                   # rule engine shared by the app and extensions
+    ├── Sources/ShieldCore/   #   Foundation-only: policy, rules, App Group store
+    ├── ShieldEnforcer.swift  #   applies the policy to ManagedSettings
+    └── Tests/                #   `swift test` (the package exists only for this)
 ```
 
-State is `AsyncNotifier` (Riverpod). Native bridge is two `MethodChannel`s:
-- `com.maxroth.backyourtime/screentime` — request auth, apply/remove shield,
-  start/stop monitoring sessions, query state
-- `com.maxroth.backyourtime/apppicker` — show the system `FamilyActivityPicker`
+### How blocking works
 
-Each profile owns its own `ManagedSettingsStore(named: "unspend.<profileId>")`
-so multiple profiles can overlap without trampling each other's shields.
+A profile's apps are blocked while **any** of its enabled rules says so:
+
+```
+blocked = manual only
+       || schedule and inside its window
+       || task mode and today's tasks not all done
+       || usage limit and today's limit used up
+```
+
+iOS enforces this, not the app. When a profile is activated the app writes a
+snapshot of its rules into the App Group and registers DeviceActivity
+monitors. From then on the monitor extension re-evaluates the rule on every
+boundary (schedule start/end, midnight, limit reached) — also while the app
+is closed. The rule lives once in Swift (`ShieldPolicy.swift`) and is mirrored
+in Dart (`shield_policy.dart`) for display; keep the two in sync.
+
+Each profile owns its own `ManagedSettingsStore(named: "unspend.<profileId>")`,
+so overlapping profiles block independently. A separate store,
+`unspend.guard`, holds the "apps cannot be deleted" restriction while any
+profile is active. Dart talks to the native side
+through intent-level calls (`activate`, `deactivate`, `setTasksDone`, `sync`, …)
+on `com.maxroth.backyourtime/screentime`; the app picker has its own channel.
 
 ## Running locally
 
-Requirements: Flutter 3.41+, Xcode 26+, an Apple Developer account that's
-been approved for the Family Controls (Distribution) entitlement.
+Requirements: Flutter 3.41+, Xcode 26+, and for a real device an Apple
+Developer account with the Family Controls entitlement.
 
 ```bash
 # One-time setup (installs Homebrew Ruby + CocoaPods via bundler)
 ./tools/setup-ios-toolchain.sh
+```
 
-# Day-to-day
-flutter pub get
+**In the Simulator** — Family Controls does not work there, so use the
+development entrypoint. It runs the whole app on an in-memory Screen Time
+that follows the same rule, with a 10-second cooldown:
+
+```bash
+flutter run -t lib/main_dev.dart
+```
+
+**On an iPhone** — the real thing:
+
+```bash
 flutter run -d <your-device>
 ```
 
-If `pod install` fails with a Unicode error, you forgot to set `LANG`. The
-`tools/setup-ios-toolchain.sh` script bakes it in.
+Settings → Diagnostics (debug builds) shows what the OS side is doing.
+
+If you build from Xcode directly after `flutter run` on a device and get
+`Framework 'Pods_Runner' not found`, run this once and build again:
+
+```bash
+flutter build ios --config-only
+```
+
+If `pod install` fails with a Unicode error, `LANG` is not set;
+`tools/setup-ios-toolchain.sh` takes care of it.
+
+Xcode project settings that are tedious to keep right by hand (iPhone-only,
+extension versions, shared source membership) are applied by a script. Run it
+after adding a Swift file under `ios/Shared`:
+
+```bash
+cd ios && bundle exec ruby ../tools/ios_project.rb
+```
+
+## Tests
+
+```bash
+flutter test                              # unit + widget tests (~1.5 min)
+swift test --package-path ios/Shared      # the native rule engine (seconds)
+flutter test integration_test -d <simulator>   # one end-to-end run
+```
+
+- `test/app/responsive_layout_test.dart` pumps every screen, sheet and dialog
+  on the smallest and largest iPhones, portrait and landscape, at default and
+  largest text size, in all five languages, and fails on any layout error.
+- `test/app/accessibility_test.dart` checks tap-target size, labels and text
+  contrast in both themes.
+- `test/presentation/profiles_notifier_test.dart` covers every rule
+  combination against the fake Screen Time.
+
+What no test can cover is iOS itself — see the device checklist at the top
+of [`docs/PUBLISH.md`](docs/PUBLISH.md).
 
 ## Building for the App Store
 
@@ -66,8 +143,9 @@ If `pod install` fails with a Unicode error, you forgot to set `LANG`. The
 ./tools/build-release.sh
 ```
 
-This runs `flutter analyze`, `flutter test`, regenerates pods, then produces
-a signed `.ipa` at `build/ios/ipa/` ready to upload via Transporter.
+This checks formatting, runs `flutter analyze`, `flutter test` and the Swift
+tests, regenerates pods, then produces a signed `.ipa` at `build/ios/ipa/`
+ready to upload via Transporter.
 
 ## Submission prep
 
@@ -78,7 +156,8 @@ Everything you need is in [`store/`](store/):
 - `review-notes.md` — App Review notes covering the Family Controls usage
 - `screenshot-spec.md` — what screenshots to take and at what size
 
-See [`LAUNCH_TODO.md`](LAUNCH_TODO.md) for the full submission checklist.
+See [`docs/PUBLISH.md`](docs/PUBLISH.md) for the short checklist and
+[`docs/LAUNCH_TODO.md`](docs/LAUNCH_TODO.md) for the detailed one.
 
 ## License
 

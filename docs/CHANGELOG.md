@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 2026-11-17 — Production hardening
+
+Blocking is now decided by one rule, enforced by iOS, and covered by tests.
+**Not yet verified on a physical device** — see the checklist at the top of
+`docs/PUBLISH.md`.
+
+#### Fixed
+- **Schedules and usage limits could never fire**: the monitor and shield
+  extensions declared extension-point identifiers iOS does not know
+  (`com.apple.deviceactivity.monitor`, `com.apple.shieldconfiguration-service`).
+  They are now `com.apple.deviceactivity.monitor-extension` and
+  `com.apple.ManagedSettingsUI.shield-configuration-service`.
+- **Rules cancelled each other.** The monitor extension blocked on every
+  "interval started" and unblocked on every "interval ended", so a usage limit
+  blocked at midnight without being used and a schedule ending lifted a block
+  that tasks or a reached limit still required. Finishing the last task also
+  stopped the profile's schedule and limit monitors. The extension now
+  re-evaluates one shared rule on every event.
+- **Task mode never re-locked** on a new day. Tasks reset daily, enforced by
+  the OS even while the app is closed.
+- **Usage counted from midnight**, so a limit could be "used up" before the
+  profile was activated. Counting starts at activation (iOS 17.4+); events that
+  arrive sooner than physically possible are ignored.
+- **Websites** chosen in the picker were never blocked.
+- **Cancelling the app picker** left the app waiting forever.
+- **Bypasses closed**: Change PIN now requires the current PIN; Change PIN and
+  Delete All Data go through the cooldown while a profile is active; an active
+  profile cannot be deleted or have its apps changed (also enforced natively).
+  Wrong-PIN lockout now survives closing the dialog and restarting the app.
+- **Delete profile / Delete All Data** left app selections behind in the App
+  Group and could leave blocks in place.
+- The shield named the wrong profile when two were active, and was always in
+  English; it now follows the in-app language, as does the app picker.
+- `BlockerProfile.copyWith` could not clear nullable fields.
+- A change made while the profile list was still loading could overwrite the
+  stored profiles; rapid changes could lose updates.
+- Simulator builds and `flutter build ipa` were broken by a build-directory
+  pin in the xcconfig files; extension versions did not follow the app version.
+
+#### Changed
+- Screen Time permission is asked for on the last onboarding page instead of
+  silently at startup; a dashboard banner explains what to do when it is
+  missing.
+- iPhone only (was universal); every screen works in portrait and landscape.
+- System text size is honoured up to 1.6×; all screens, sheets and dialogs
+  scroll instead of overflowing. Tap targets are at least 44 pt. Screen-reader
+  labels are localized. Text colours meet WCAG AA in both themes, including
+  text in profile colours.
+- The app follows a system light/dark switch immediately.
+- Setting a PIN after picking apps can be postponed ("Not now").
+- `profile_detail_screen.dart` (1,258 lines) and `dashboard_body.dart` (697)
+  were split into focused widgets; side effects sit behind providers.
+
+#### Added
+- **Child mode.** Onboarding asks who uses the iPhone. "My child's iPhone"
+  requests Family Controls authorization for `.child`: a parent approves with
+  their Apple Account and iOS keeps the child from deleting Unspend or
+  withdrawing its access. Changeable in Settings while nothing is active
+  (access is given back and requested again). Delete All Data now also gives
+  Screen Time access back.
+- **Uninstall protection.** While a profile is active, iOS does not allow
+  deleting apps (`denyAppRemoval`), so removing Unspend is not a way around a
+  block. On by default; switching it off takes the PIN, plus the cooldown while
+  a profile is active.
+- Shared Swift rule engine (`ios/Shared`) with 42 unit tests (`swift test`).
+- 357 Dart tests (was 22): rule combinations, repositories, channel contract,
+  every screen's behaviour, a responsive layout matrix and accessibility checks;
+  one end-to-end integration test.
+- `lib/main_dev.dart`: the full app in the Simulator on an in-memory Screen Time.
+- Debug-only Diagnostics screen showing what the OS side did.
+- `tools/ios_project.rb` keeps Xcode project settings consistent.
+- Privacy manifests for the extensions; App Group reason added to the app's.
+
+#### Removed
+- Dead code: hand-rolled switches, `PressableCard`, unused strings and barrels.
+
+
 ### Fixed
 - 2026-07-15: Missing `mounted` guards after `await` in `profile_detail_screen` —
   the usage-limit picker (`_pickUsageLimit`) and both schedule `showTimePicker`

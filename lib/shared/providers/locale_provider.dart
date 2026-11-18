@@ -1,13 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
 
-/// Holds the current language code ('en' or 'de').
-/// Watching this provider triggers a full UI rebuild when the language changes.
-final localeProvider = StateProvider<String>((ref) => S.langCode);
+/// The app's language code ('en', 'de', …).
+///
+/// Strings are read from the global [S.current]; widgets watch this provider
+/// so they rebuild when the language changes.
+final localeProvider = NotifierProvider<LocaleNotifier, String>(
+  LocaleNotifier.new,
+);
 
-/// Helper to switch language at runtime.
-/// Updates [S.current] + persists + updates the provider.
-Future<void> switchLocale(WidgetRef ref, String langCode) async {
-  await S.setLocale(langCode);
-  ref.read(localeProvider.notifier).state = langCode;
+class LocaleNotifier extends Notifier<String> {
+  @override
+  String build() => S.langCode;
+
+  /// Switches the language at once and remembers the choice.
+  Future<void> setLocale(String langCode) async {
+    final saving = S.setLocale(langCode);
+    state = langCode;
+    await saving;
+  }
 }

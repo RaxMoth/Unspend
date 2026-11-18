@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'design_tokens.dart';
+
 /// App Theme Configuration — light & dark variants.
 class AppTheme {
   AppTheme._();
@@ -33,7 +35,7 @@ class AppTheme {
     const border = Color(0xFFE0E0E0);
     const accent = Color(0xFFE53935);
     const textPrimary = Color(0xFF1A1A1A);
-    const textSecondary = Color(0xFF757575);
+    const textSecondary = Color(0xFF666666);
     const radius = 16.0;
 
     return _buildTheme(
@@ -60,6 +62,9 @@ class AppTheme {
     required double radius,
   }) {
     final isDark = brightness == Brightness.dark;
+    // The accent as text has to be readable on this theme's surfaces,
+    // including tinted cards; the border colour is the hardest of them.
+    final accentText = readableOn(accent, border);
 
     return ThemeData(
       useMaterial3: true,
@@ -73,7 +78,7 @@ class AppTheme {
         onSecondary: isDark ? textPrimary : Colors.white,
         surface: surface,
         onSurface: textPrimary,
-        error: accent,
+        error: accentText,
         onError: Colors.white,
         outline: border,
       ),
@@ -107,6 +112,7 @@ class AppTheme {
           borderSide: BorderSide(color: accent),
         ),
         labelStyle: TextStyle(color: textSecondary, fontSize: 13),
+        errorStyle: TextStyle(color: accentText, fontSize: 12),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
@@ -114,7 +120,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: accent,
+          backgroundColor: kAccentFill,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
@@ -124,7 +130,7 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: accent,
+          backgroundColor: kAccentFill,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
@@ -133,7 +139,7 @@ class AppTheme {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: accent),
+        style: TextButton.styleFrom(foregroundColor: accentText),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: surface,

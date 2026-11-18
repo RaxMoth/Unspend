@@ -44,3 +44,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# SwiftPM build output of the shared rule engine (swift test)
+/ios/Shared/.build/

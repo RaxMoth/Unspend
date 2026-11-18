@@ -1,0 +1,263 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unspend/app.dart';
+import 'package:unspend/config/router.dart';
+import 'package:unspend/core/constants/strings.dart';
+import 'package:unspend/core/providers.dart';
+import 'package:unspend/core/time/day_key.dart';
+import 'package:unspend/features/app_blocker/data/datasources/fake_screen_time_datasource.dart';
+import 'package:unspend/features/app_blocker/data/datasources/method_channel_screen_time_datasource.dart';
+import 'package:unspend/features/app_blocker/data/datasources/screen_time_datasource.dart';
+import 'package:unspend/features/app_blocker/data/repositories/pin_repository.dart';
+import 'package:unspend/features/app_blocker/data/repositories/profiles_repository.dart';
+import 'package:unspend/features/app_blocker/domain/entities/blocker_profile.dart';
+import 'package:unspend/features/app_blocker/presentation/providers/device_mode_provider.dart';
+import 'package:unspend/features/app_blocker/presentation/providers/profiles_provider.dart';
+
+/// A phone the app has to hold up on: screen size in points and the insets
+/// taken by notch, Dynamic Island and home indicator.
+class Device {
+  const Device(this.name, this.size, {this.padding = EdgeInsets.zero});
+
+  final String name;
+  final Size size;
+  final EdgeInsets padding;
+
+  @override
+  String toString() => name;
+}
+
+/// Smallest and largest iPhones, upright and on their side. The 320-point
+/// width covers Display Zoom on the smaller models.
+const devices = [
+  Device('320×568 portrait', Size(320, 568), padding: EdgeInsets.only(top: 20)),
+  Device('375×667 portrait', Size(375, 667), padding: EdgeInsets.only(top: 20)),
+  Device(
+    '430×932 portrait',
+    Size(430, 932),
+    padding: EdgeInsets.only(top: 59, bottom: 34),
+  ),
+  Device('568×320 landscape', Size(568, 320)),
+  Device('667×375 landscape', Size(667, 375)),
+  Device(
+    '932×430 landscape',
+    Size(932, 430),
+    padding: EdgeInsets.only(left: 59, right: 59, bottom: 21),
+  ),
+];
+
+const defaultDevice = Device(
+  '375×667 portrait',
+  Size(375, 667),
+  padding: EdgeInsets.only(top: 20),
+);
+
+/// The moment every app test starts at: a Tuesday at noon.
+final testNow = DateTime(2026, 11, 17, 12);
+
+/// Profiles covering every kind of card: active with all three rules and
+/// tasks (and names long enough to wrap), plain manual, and limit-only
+/// without apps.
+List<BlockerProfile> sampleProfiles({DateTime? now}) {
+  final at = now ?? testNow;
+  return [
+    BlockerProfile(
+      id: 'social',
+      name: 'Social media and endless scrolling',
+      iconLabel: 'Social',
+      hasAppsSelected: true,
+      appCount: 12,
+      scheduleEnabled: true,
+      scheduleStartHour: 9,
+      scheduleStartMinute: 0,
+      scheduleEndHour: 17,
+      scheduleEndMinute: 30,
+      usageLimitEnabled: true,
+      usageLimitMinutes: 90,
+      taskModeEnabled: true,
+      tasks: const [
+        BlockerTask(
+          id: 't1',
+          title: 'Read twenty pages of the book on the nightstand',
+          isDone: true,
+        ),
+        BlockerTask(id: 't2', title: 'Go for a run'),
+      ],
+      isActive: true,
+      shieldActivatedAt: at
+          .subtract(const Duration(hours: 2))
+          .toIso8601String(),
+      tasksLastResetDate: dayKey(at),
+    ),
+    BlockerProfile(
+      id: 'games',
+      name: 'Games',
+      colorValue: 0xFF43A047,
+      iconLabel: 'Games',
+      hasAppsSelected: true,
+      appCount: 3,
+      tasksLastResetDate: dayKey(at),
+    ),
+    BlockerProfile(
+      id: 'news',
+      name: 'News',
+      colorValue: 0xFFFFC107,
+      iconLabel: 'News',
+      usageLimitEnabled: true,
+      usageLimitMinutes: 45,
+      tasksLastResetDate: dayKey(at),
+    ),
+  ];
+}
+
+/// The running app plus everything a test needs to look behind it.
+class AppHarness {
+  AppHarness._(this.tester, this.container, this.screenTime, this.prefs);
+
+  final WidgetTester tester;
+  final ProviderContainer container;
+  final FakeScreenTimeDatasource screenTime;
+  final SharedPreferences prefs;
+
+  /// What the app's clock returns; tests move it forward.
+  DateTime now = testNow;
+  bool _disposed = false;
+
+  S get s => S.current;
+
+  List<BlockerProfile> get profiles =>
+      container.read(profilesProvider).requireValue;
+
+  BlockerProfile profile(String id) => profiles.singleWhere((p) => p.id == id);
+
+  PinRepository get pins => container.read(pinRepositoryProvider);
+
+  /// Navigates to [location] as a deep link would.
+  Future<void> open(String location) async {
+    container.read(routerProvider).go(location);
+    await tester.pumpAndSettle();
+  }
+
+  /// Taps the first match of [finder], scrolling it into view first: list
+  /// items below the fold are not built (or not exposed to accessibility)
+  /// until they are scrolled to, and the floating button covers the corner.
+  Future<void> tap(Finder finder) async {
+    for (var i = 0; i < 40 && finder.evaluate().isEmpty; i++) {
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -120));
+      await tester.pump();
+    }
+    final target = finder.first;
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+  }
+
+  /// Lets [duration] pass one second at a time, as a running countdown
+  /// would see it.
+  Future<void> elapse(Duration duration) async {
+    for (var i = 0; i < duration.inSeconds; i++) {
+      now = now.add(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+    }
+    await tester.pump();
+  }
+
+  /// Takes the app down so another one can be started in the same test.
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
+  }
+}
+
+/// Starts the real app (router, theme, lifecycle host) on top of a fake
+/// Screen Time and in-memory storage.
+Future<AppHarness> pumpUnspend(
+  WidgetTester tester, {
+  List<BlockerProfile> profiles = const [],
+  bool onboardingSeen = true,
+  Device device = defaultDevice,
+  double textScale = 1,
+  String locale = 'en',
+  Brightness brightness = Brightness.dark,
+  ScreenTimeAuthStatus auth = ScreenTimeAuthStatus.approved,
+  ScreenTimeAuthStatus authAfterRequest = ScreenTimeAuthStatus.approved,
+  DeviceMode mode = DeviceMode.personal,
+  bool isChildAccount = true,
+  Duration cooldown = const Duration(seconds: 3),
+  String? pin,
+  DateTime? now,
+}) async {
+  tester.view
+    ..physicalSize = device.size
+    ..devicePixelRatio = 1
+    ..padding = FakeViewPadding(
+      left: device.padding.left,
+      top: device.padding.top,
+      right: device.padding.right,
+      bottom: device.padding.bottom,
+    );
+  tester.platformDispatcher
+    ..textScaleFactorTestValue = textScale
+    ..platformBrightnessTestValue = brightness;
+  addTearDown(tester.view.reset);
+  addTearDown(tester.platformDispatcher.clearAllTestValues);
+
+  SharedPreferences.setMockInitialValues({
+    ProfilesRepository.schemaVersionKey:
+        ProfilesRepository.currentSchemaVersion,
+    if (profiles.isNotEmpty)
+      ProfilesRepository.profilesKey: jsonEncode([
+        for (final profile in profiles) profile.toJson(),
+      ]),
+    if (onboardingSeen) kHasSeenOnboardingKey: true,
+    if (mode != DeviceMode.personal) DeviceModeNotifier.storageKey: mode.name,
+  });
+  FlutterSecureStorage.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+  await S.setLocale(locale);
+
+  late final AppHarness harness;
+  final screenTime = FakeScreenTimeDatasource(
+    authStatus: auth,
+    statusAfterRequest: authAfterRequest,
+    isChildAccount: isChildAccount,
+    clock: () => harness.now,
+  );
+  // The OS side already knows the stored profiles.
+  for (final profile in profiles) {
+    if (profile.hasAppsSelected) {
+      screenTime.selections[profile.id] = profile.appCount;
+    }
+    if (profile.isActive) {
+      screenTime.active[profile.id] = ActivationRequest.fromProfile(profile);
+    }
+  }
+
+  final container = ProviderContainer(
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      clockProvider.overrideWithValue(() => harness.now),
+      cooldownDurationProvider.overrideWithValue(cooldown),
+      screenTimeDatasourceProvider.overrideWithValue(screenTime),
+    ],
+  );
+  harness = AppHarness._(tester, container, screenTime, prefs);
+  if (now != null) harness.now = now;
+  addTearDown(harness.dispose);
+  if (pin != null) await harness.pins.setPin(pin);
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: const UnspendApp()),
+  );
+  await tester.pumpAndSettle();
+  screenTime.calls.clear();
+  return harness;
+}

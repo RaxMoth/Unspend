@@ -1,67 +1,64 @@
 # Unspend — Features
 
-Living inventory of what ships, what's mid-flight, and what's queued.
-Bootstrapped from `LAUNCH_TODO.md` and a code read on 2026-07-06.
+What ships, what is open, and what is queued. Last updated 2026-11-17.
 
 ## ✅ Shipped
 
-- **App blocker core** — Apple Family Controls + ManagedSettings, natively enforced.
-- **Four stackable rule types** per profile: manual on/off, daily time-of-day
-  schedule, daily usage budget, and "task list must be done" gate.
-- **Per-profile shields** — each profile owns `ManagedSettingsStore(named: "unspend.<id>")`;
-  overlapping profiles don't trample each other (multi-profile correctness fix landed).
-- **Four iOS extensions** — Runner, FocusMonitor, AppBlocker, ShieldConfigurationExtension.
-- **Custom shield UI** via ShieldConfigurationExtension (not the default OS shield).
-- **PIN protection** — SHA-256 + per-install salt in Keychain, 5-minute cooldown.
-- **Dual-mode time picker** (wheel + keypad).
-- **Statistics page** and guided profile setup.
-- **5 languages** — en, de, es, fr, hr (abstract `S` class + per-locale impls).
-- **Light + dark theming** via design tokens (Material 3).
-- **Haptic feedback** across interactions.
-- **Privacy manifest** + submission artifacts under `store/`.
-- **`BlockerProfile` unit tests** — JSON round-trip, corrupt-storage clamping,
-  overnight schedule-window math, and requirement getters (15 tests).
-- **PIN hashing** — pure `PinHasher` helper (SHA-256 over `'<salt>:<pin>'`,
-  seedable salt) with save→verify round-trip test coverage (7 tests).
-- **CI workflow** — `.github/workflows/ci.yml` runs `flutter analyze` + `flutter test`
-  on pushes to `main` and on PRs (Flutter 3.41.2, `subosito/flutter-action@v2`,
-  concurrency-cancel). A broken analyze/test fails the check.
-- **Framework-lean picker controls** — color/icon pickers (`profile_detail_screen`)
-  and the add-task button (`task_list_section`) use `Material` + `InkWell` (ripple +
-  focus highlight) wrapped in `Semantics` (screen-reader button role + selected state),
-  replacing the prior `GestureDetector` + `Container` tap targets. Visuals unchanged.
-- **`dart format` compliance + CI gate** — reformatted the tree (20 files) and added a
-  `dart format --output=none --set-exit-if-changed lib test` step to `ci.yml`, so
-  formatting drift now fails the check alongside analyze/test. Formatting-only, no logic change.
-- **`.select()` narrowing in `profile_detail_screen`** — `ProfileDetailPageShell` now
-  watches `profilesProvider.select(...)` projecting only the matching profile (via
-  `AsyncValue.whenData`) instead of the whole list. Unchanged profiles keep their identity
-  across `ProfilesNotifier` state updates, so editing any *other* profile no longer rebuilds
-  the open detail screen. Loading/error/not-found handling unchanged.
+**Blocking**
+- Apps, app categories and websites blocked by iOS itself (Family Controls,
+  ManagedSettings, DeviceActivity).
+- Four stackable rules per profile: manual, daily schedule (also overnight),
+  daily usage limit (1 min – 23 h 59 min), and task mode (blocked until today's
+  tasks are done; resets every day).
+- One rule decides: blocked while *any* enabled rule says so. Enforced by the
+  monitor extension while the app is closed, including the midnight reset.
+- Each profile has its own shield, so profiles sharing an app do not interfere.
+- Custom shield screen in the app's language, naming the blocking profile.
 
-## 🚧 In progress
+**For yourself or for your child**
+- Chosen on first launch (and changeable in Settings while nothing is
+  active): "my iPhone" asks for Screen Time access for the user; "my child's
+  iPhone" has a parent approve with their Apple Account (Family Sharing), after
+  which iOS keeps the child from deleting Unspend or switching it off.
+- Uninstall protection: while a profile is active, apps cannot be deleted
+  from the phone. On by default; switching it off takes the PIN, and the
+  cooldown while a profile is active.
 
-- _(nothing active)_
+**Protection against giving in**
+- Deactivating takes a 5-minute cooldown, then the PIN (if one is set).
+- PIN: salted SHA-256 in the Keychain; lockout after repeated wrong attempts
+  that survives closing the dialog or the app.
+- Changing the PIN requires the current one. While a profile is active,
+  Change PIN and Delete All Data also take the cooldown, and the profile's
+  rules, apps and tasks are locked.
+
+**App**
+- Onboarding that ends with the Screen Time permission; a dashboard banner
+  when permission is missing.
+- iPhone, portrait and landscape; system text size up to 1.6×.
+- Light, dark and system theme. English, German, Spanish, French, Croatian.
+- VoiceOver labels, 44 pt tap targets, WCAG AA text contrast.
+- 100 % on-device: no account, no network, no analytics. Delete All Data
+  removes everything, including the app selections held by iOS.
+
+**Engineering**
+- 357 Dart tests, 42 Swift tests, one integration test; CI on every push.
+- `lib/main_dev.dart` runs the whole app in the Simulator on a fake Screen Time.
+- Debug-only Diagnostics screen (Settings) for what the OS side did.
+
+## 🚧 Open before release
+
+- **Verify blocking on a physical iPhone** — the engine was rewritten and
+  Screen Time cannot run in the Simulator. Checklist: `docs/PUBLISH.md`, section 0.
+- Apple portal work (entitlement approval, App Store Connect) — `docs/LAUNCH_TODO.md`.
 
 ## 📋 Backlog
 
-Sourced from `LAUNCH_TODO.md` "Quality-of-life follow-ups" plus audit findings.
-Highest-value first.
-
-- **Localize hardcoded English in Semantics labels** — screen-reader labels in
-  `profile_card.dart:29` ("mode"/"active"/"inactive"), `task_list_section.dart:47`
-  ("of"/"completed"), and `rule_toggle_card.dart:34` ("enabled"/"disabled") are hardcoded
-  English. Add `S` keys across all 5 locales and interpolate. (~30 min)
-- **Undersized task-delete tap target** — the per-task delete "X" in `task_list_section.dart`
-  (~line 167) is a `GestureDetector` → `Padding(4)` → `Icon(18)`, ~26px (below the 48px a11y
-  minimum) with no ripple. Swap for an `IconButton`. (~15 min)
-- **Hand-rolled toggle switches → `Switch`** — `rule_toggle_card.dart` (~line 92) and
-  `profile_card.dart` (~line 205) reimplement Material `Switch` with `AnimatedContainer` +
-  `AnimatedAlign`. Larger refactor; partly a deliberate style choice. Note the inner toggle
-  `GestureDetector` in `rule_toggle_card` overlaps the card's own `InkWell` (two handlers for
-  one action). (est. TBD)
-- **Crash reporter** (Sentry or similar) — note: changes the privacy label, must be
-  disclosed. Post-launch. (~1–2 h)
-- **Freemium model** — e.g. 1 profile free, unlimited paid. Product decision. (est. TBD)
-- **iPad layout** — currently iPhone-only. (est. TBD)
-- **Legacy `blockedApps` key migration** — one-off Dart migration for old installs. (~1 h)
+- **Statistics screen** — the app already records how long profiles were
+  active and the daily peak of active profiles; nothing displays it yet.
+- **Crash reporter** (Sentry or similar) — changes the privacy label and must
+  be disclosed. Post-launch.
+- **Freemium model** — e.g. one profile free. Product decision.
+- **iPad layout** — the app is iPhone-only.
+- **Colour tokens as a `ThemeExtension`** — today they are global getters kept
+  in sync by `app.dart`; a mechanical refactor with no user-visible change.
