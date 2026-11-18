@@ -4,12 +4,14 @@ name: CI
 #
 #   • analyze-and-test: formatting, static analysis and the Dart test suite
 #     (unit, widget, responsive layout matrix, accessibility), with coverage.
+#   • android: a debug build and the Kotlin rule engine's unit tests.
 #   • ios: the native rule engine's Swift tests and a simulator build, so a
 #     change that breaks the Xcode project or the Swift code fails here
 #     rather than on someone's machine.
 #
 # What CI cannot check is blocking on a real device (Screen Time does not
-# run in the Simulator); see docs/PUBLISH.md, section 0.
+# run in the Simulator, and no emulator runs here); see docs/PUBLISH.md,
+# section 0.
 
 on:
   push:
