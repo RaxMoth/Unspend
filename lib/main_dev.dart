@@ -23,8 +23,8 @@ import 'package:unspend/features/app_blocker/data/datasources/screen_time_dataso
 ///   • `CHILD_ACCOUNT=no`     the phone is not a child's (child mode fails)
 ///   • `COOLDOWN_SECONDS=300` cooldown length (default 10)
 ///   • `NATIVE=true`          keep the real bridge to the OS and only
-///                            shorten the cooldown. For the Android
-///                            emulator, where blocking works for real.
+///                            shorten the cooldown. For a real iPhone and
+///                            for Android, where blocking works for real.
 ///
 /// Without `NATIVE`, nothing is blocked for real. Never ship this entrypoint.
 Future<void> main() async {

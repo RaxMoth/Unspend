@@ -92,6 +92,9 @@ final class AppPickerViewController: UIViewController {
     private let labels: AppPickerLabels
     private let shared: SharedStore
     private var completion: ((Int?) -> Void)?
+    /// What Save decided: the number of picked items. Stays nil for Cancel
+    /// and for a sheet that went away by itself.
+    private var savedCount: Int?
 
     init(
         profileId: String,
@@ -117,7 +120,7 @@ final class AppPickerViewController: UIViewController {
 
     deinit {
         // Last resort: whatever happened to the sheet, Dart gets an answer.
-        completion?(nil)
+        completion?(savedCount)
     }
 
     override func viewDidLoad() {
@@ -128,7 +131,7 @@ final class AppPickerViewController: UIViewController {
                 ?? FamilyActivitySelection(),
             labels: labels,
             onSave: { [weak self] selection in self?.save(selection) },
-            onCancel: { [weak self] in self?.finish(with: nil) }
+            onCancel: { [weak self] in self?.close() }
         )
         let host = UIHostingController(rootView: pickerView)
         addChild(host)
@@ -145,32 +148,35 @@ final class AppPickerViewController: UIViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        // Dismissed by something other than the two buttons.
+        // UIKit calls this before the completion block of `dismiss`, and
+        // also when something other than the two buttons closed the sheet.
+        // Either way the sheet is gone, so Dart gets what was decided.
         if isBeingDismissed || presentingViewController == nil {
-            answer(nil)
+            answer()
         }
     }
 
     private func save(_ selection: FamilyActivitySelection) {
         guard let data = try? JSONEncoder().encode(selection) else {
-            finish(with: nil)
+            close()
             return
         }
         shared.setSelectionData(data, for: profileId)
-        finish(with: selection.applicationTokens.count
+        savedCount = selection.applicationTokens.count
             + selection.categoryTokens.count
-            + selection.webDomainTokens.count)
+            + selection.webDomainTokens.count
+        close()
     }
 
-    private func finish(with count: Int?) {
-        dismiss(animated: true) { [weak self] in self?.answer(count) }
+    private func close() {
+        dismiss(animated: true) { [weak self] in self?.answer() }
     }
 
-    /// Hands the result to Dart, once.
-    private func answer(_ count: Int?) {
+    /// Hands the result to Dart, once: the saved count, or nil for a cancel.
+    private func answer() {
         guard let completion else { return }
         self.completion = nil
-        completion(count)
+        completion(savedCount)
     }
 }
 

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 2026-11-18 — First run on an iPhone
+
+#### Fixed
+- **Picked apps were not taken over by the profile.** On a real iPhone the
+  picker stored the selection but answered "cancelled", so the profile kept
+  showing "no apps selected" and could not be activated. UIKit reports that
+  the sheet has gone before it runs the completion of `dismiss`, and the
+  first answer won. The picker now remembers what Save decided and reports
+  that, whichever of the two comes first. (The picker does not run in the
+  Simulator, which is why no test caught it.)
+
+#### Changed
+- `lib/main_dev.dart --dart-define=NATIVE=true` is also the way to test on
+  an iPhone without waiting five minutes for every cooldown; see
+  `docs/PUBLISH.md`, section 0.
+
 ### 2026-11-18 — Android foundation
 
 The app now runs on Android and blocks apps there. iOS behaviour is
