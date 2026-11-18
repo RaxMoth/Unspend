@@ -315,6 +315,17 @@ void main() {
     expect(diagnostics.eventLog.single, contains('shielded'));
   });
 
+  test('the app version is passed through', () async {
+    reply = (_) => '1.2.0 (7)';
+
+    expect(await datasource.appVersion(), '1.2.0 (7)');
+    expect(calls.single.method, 'appVersion');
+  });
+
+  test('a missing app version reads as empty', () async {
+    expect(await datasource.appVersion(), '');
+  });
+
   group('errors', () {
     const codes = {
       'NOT_AUTHORIZED': ScreenTimeError.notAuthorized,

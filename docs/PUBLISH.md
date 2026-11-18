@@ -9,10 +9,18 @@ rules, the app's logic and every screen, but **not** what iOS actually does.
 The blocking engine was rewritten in November 2026 and has not yet run on a
 device. Do this before anything else; each item is a few minutes.
 
-Run a debug build from Xcode or `flutter run` on the phone. **Settings → Diagnostics**
-(debug builds only) shows the authorization state, the registered monitors
-and the last 30 decisions of the app and its background extension — look
-there first when something does not start or stop when expected.
+Install a **release** build: `flutter run --release -d <your-iphone>`. A debug
+build only starts while it is connected to the computer — iOS refuses to
+open it from the Home Screen afterwards — and several checks below need the
+app closed for hours.
+
+**Diagnostics:** open Settings in the app and **press and hold the version
+line** at the bottom ("Unspend 1.0.0 (1)"). It shows the authorization state,
+the registered monitors and the last 30 decisions of the app and its
+background extension — look there first when something does not start or
+stop when expected. **Copy** puts the whole report on the clipboard; paste it
+into a note (or to whoever is helping you debug) before and after a check
+that fails.
 
 - [ ] **Permission.** Fresh install: onboarding's last page shows the Screen
       Time prompt. Deny it → the dashboard shows a banner → "Open Settings" →

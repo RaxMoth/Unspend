@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/storage_keys.dart';
 import 'package:unspend/core/theme/theme.dart';
 import 'package:unspend/core/widgets/app_switch.dart';
+import 'package:unspend/features/app_blocker/data/datasources/screen_time_datasource.dart';
 import 'package:unspend/features/app_blocker/data/repositories/pin_repository.dart';
 import 'package:unspend/features/app_blocker/domain/entities/blocker_profile.dart';
 import 'package:unspend/features/app_blocker/presentation/native_strings.dart';
@@ -397,12 +399,95 @@ void main() {
       expect(find.text(app.s.privacyPolicyBody), findsOneWidget);
     });
 
-    testWidgets('debug builds offer diagnostics', (tester) async {
-      final app = await pumpUnspend(tester, profiles: sampleProfiles());
-      await openSetting(tester, app, 'Diagnostics');
+    testWidgets('the version is shown at the end of the list', (tester) async {
+      final app = await pumpUnspend(tester);
+      app.screenTime.version = '2.3.0 (41)';
+      await tester.tap(find.byTooltip(app.s.settings));
+      await tester.pumpAndSettle();
 
-      expect(find.textContaining('Authorization: approved'), findsOneWidget);
-      expect(find.textContaining('unspend.schedule.social'), findsOneWidget);
+      expect(find.text('Unspend 2.3.0 (41)'), findsOneWidget);
+      expect(find.text('Diagnostics'), findsNothing);
+    });
+
+    testWidgets('a version that cannot be read leaves the name', (
+      tester,
+    ) async {
+      final app = await pumpUnspend(tester);
+      app.screenTime.version = '';
+      await tester.tap(find.byTooltip(app.s.settings));
+      await tester.pumpAndSettle();
+
+      // The dashboard behind the sheet carries the name as its title.
+      expect(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.text('Unspend'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    group('diagnostics', () {
+      Future<AppHarness> openDiagnostics(WidgetTester tester) async {
+        final app = await pumpUnspend(tester, profiles: sampleProfiles());
+        await tester.tap(find.byTooltip(app.s.settings));
+        await tester.pumpAndSettle();
+        await app.longPress(find.textContaining('Unspend 1.0.0'));
+        return app;
+      }
+
+      testWidgets('open with a long press on the version', (tester) async {
+        await openDiagnostics(tester);
+
+        expect(find.text('Diagnostics'), findsOneWidget);
+        expect(find.textContaining('Unspend 1.0.0 (1)'), findsOneWidget);
+        expect(find.textContaining('Authorization: approved'), findsOneWidget);
+        expect(find.textContaining('unspend.schedule.social'), findsOneWidget);
+      });
+
+      testWidgets('can be copied', (tester) async {
+        String? copied;
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            if (call.method == 'Clipboard.setData') {
+              copied =
+                  (call.arguments as Map<Object?, Object?>)['text'] as String?;
+            }
+            return null;
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform,
+            null,
+          ),
+        );
+        final app = await openDiagnostics(tester);
+
+        await app.tap(find.text('Copy'));
+
+        expect(copied, contains('Authorization: approved'));
+        expect(copied, contains('Event log'));
+        expect(find.text('Copied'), findsOneWidget);
+      });
+
+      testWidgets('say so when the state cannot be read', (tester) async {
+        final app = await pumpUnspend(tester);
+        await tester.tap(find.byTooltip(app.s.settings));
+        await tester.pumpAndSettle();
+        app.screenTime.failNext = const ScreenTimeException(
+          ScreenTimeError.unavailable,
+        );
+        await app.longPress(find.textContaining('Unspend 1.0.0'));
+
+        expect(find.textContaining('Could not read'), findsOneWidget);
+        expect(find.text('Copy'), findsNothing);
+
+        await app.tap(find.text('Refresh'));
+
+        expect(find.textContaining('Authorization: approved'), findsOneWidget);
+      });
     });
   });
 }

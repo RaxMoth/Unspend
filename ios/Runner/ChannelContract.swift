@@ -27,6 +27,7 @@ enum ChannelContract {
         case setShieldStrings
         case setRemovalLockEnabled
         case diagnostics
+        case appVersion
 
         /// On the app-picker channel.
         case showPicker

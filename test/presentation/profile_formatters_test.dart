@@ -62,7 +62,7 @@ void main() {
       );
       expect(
         p.subtitle(S.current),
-        '2 apps · 22:30–06:00 · 45min limit · 1/2 tasks',
+        '2 apps · 22:30–06:00 · 45 min limit · 1/2 tasks',
       );
     });
 

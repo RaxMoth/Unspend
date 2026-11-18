@@ -47,6 +47,9 @@ class FakeScreenTimeDatasource implements ScreenTimeDatasource {
   /// all, to exercise how the app copes with a failure nobody anticipated.
   Object? crashNext;
 
+  /// What [appVersion] answers.
+  String version = '1.0.0 (1)';
+
   /// Every call in order, e.g. `activate:<id>`, `setTasksDone:<id>:true`.
   final List<String> calls = [];
 
@@ -269,18 +272,24 @@ class FakeScreenTimeDatasource implements ScreenTimeDatasource {
   }
 
   @override
-  Future<ScreenTimeDiagnostics> diagnostics() async => ScreenTimeDiagnostics(
-    authorization: authStatus,
-    removalLocked: removalLocked,
-    activeProfileIds: active.keys.toList(),
-    shieldedProfileIds: active.keys.where(isShielded).toList(),
-    monitoredActivities: [
-      for (final rules in active.values) ...[
-        if (rules.hasSchedule) 'unspend.schedule.${rules.profileId}',
-        if (rules.usageLimitMinutes != null || rules.taskModeEnabled)
-          'unspend.day.${rules.profileId}',
+  Future<ScreenTimeDiagnostics> diagnostics() async {
+    _failIfRequested();
+    return ScreenTimeDiagnostics(
+      authorization: authStatus,
+      removalLocked: removalLocked,
+      activeProfileIds: active.keys.toList(),
+      shieldedProfileIds: active.keys.where(isShielded).toList(),
+      monitoredActivities: [
+        for (final rules in active.values) ...[
+          if (rules.hasSchedule) 'unspend.schedule.${rules.profileId}',
+          if (rules.usageLimitMinutes != null || rules.taskModeEnabled)
+            'unspend.day.${rules.profileId}',
+        ],
       ],
-    ],
-    eventLog: List.of(calls),
-  );
+      eventLog: List.of(calls),
+    );
+  }
+
+  @override
+  Future<String> appVersion() async => version;
 }

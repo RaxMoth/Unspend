@@ -26,6 +26,7 @@ abstract final class ScreenTimeMethod {
   static const setShieldStrings = 'setShieldStrings';
   static const setRemovalLockEnabled = 'setRemovalLockEnabled';
   static const diagnostics = 'diagnostics';
+  static const appVersion = 'appVersion';
 
   /// On the app-picker channel.
   static const showPicker = 'showPicker';

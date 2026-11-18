@@ -186,4 +186,8 @@ class MethodChannelScreenTimeDatasource implements ScreenTimeDatasource {
       eventLog: _strings(raw[ScreenTimeReply.eventLog]),
     );
   }
+
+  @override
+  Future<String> appVersion() async =>
+      await _invoke<String>(channel, ScreenTimeMethod.appVersion) ?? '';
 }
