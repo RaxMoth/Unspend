@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown by Android on the screen where the blocker service is switched on. -->
+    <string name="blocker_service_summary">Prikazuje zaslon blokade kada otvoriš aplikaciju koju jedan od tvojih profila blokira.</string>
+    <string name="blocker_service_description">Unspend pomoću ove usluge prepoznaje koju aplikaciju otvaraš. Tako prikazuje zaslon blokade preko aplikacija koje blokiraju tvoji aktivni profili i broji vrijeme za dnevno ograničenje.\n\nNe može čitati što je na tvom zaslonu i ništa ne napušta tvoj telefon.</string>
+</resources>

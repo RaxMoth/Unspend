@@ -4,8 +4,9 @@ import Flutter
 /// reply keys, error codes.
 ///
 /// Every name here exists once more in Dart
-/// (`lib/features/app_blocker/data/datasources/screen_time_contract.dart`).
-/// Change both together.
+/// (`lib/features/app_blocker/data/datasources/screen_time_contract.dart`)
+/// and in Kotlin (`android/app/src/main/kotlin/.../ChannelContract.kt`).
+/// Change all three together.
 enum ChannelContract {
     static let screenTimeChannel = "com.maxroth.backyourtime/screentime"
     static let appPickerChannel = "com.maxroth.backyourtime/apppicker"

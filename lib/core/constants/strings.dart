@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../storage_keys.dart';
 
+part 'strings_android.dart';
+
 /// Centralised user-facing strings with locale support.
 /// Supported: English (en), Deutsch (de), Español (es), Français (fr), Hrvatski (hr).
 ///
@@ -18,12 +20,16 @@ abstract class S {
   // ── Singleton access ─────────────────────────────────────────────────────
   static late S current;
 
+  /// Whether the wording is for Android (see `strings_android.dart`). Set
+  /// before [init] or [setLocale]; it takes effect with the next of them.
+  static bool android = false;
+
   static S _forCode(String code) => switch (code) {
-    'de' => _De(),
-    'es' => _Es(),
-    'fr' => _Fr(),
-    'hr' => _Hr(),
-    _ => _En(),
+    'de' => android ? _DeAndroid() : _De(),
+    'es' => android ? _EsAndroid() : _Es(),
+    'fr' => android ? _FrAndroid() : _Fr(),
+    'hr' => android ? _HrAndroid() : _Hr(),
+    _ => android ? _EnAndroid() : _En(),
   };
 
   /// Must be called once before `runApp`.
@@ -221,6 +227,12 @@ abstract class S {
   String get authBannerTitle;
   String get authBannerBody;
   String get authAllow;
+
+  // Android only: shown before the user is sent to the system screen where
+  // the accessibility service is switched on.
+  String get accessDisclosureTitle;
+  String get accessDisclosureBody;
+  String get accessDisclosureAgree;
   String get authDeniedHint;
   String get authGranted;
   String get onboardingTitle4;
@@ -375,7 +387,8 @@ class _En extends S {
   String get blockRulesDescription =>
       'Combine any rules below. With none enabled, use Activate Shield for manual control.';
   @override
-  String appsSelected(int count) => '$count apps selected';
+  String appsSelected(int count) =>
+      count == 1 ? '1 app selected' : '$count apps selected';
   @override
   String get selectAppsToBlock => 'Select Apps to Block';
   @override
@@ -435,7 +448,7 @@ class _En extends S {
   @override
   String get noAppsSelected => 'No apps selected';
   @override
-  String subtitleApps(int count) => '$count apps';
+  String subtitleApps(int count) => count == 1 ? '1 app' : '$count apps';
   @override
   String subtitleUsageLimit(String duration) => '$duration limit';
   @override
@@ -566,6 +579,15 @@ class _En extends S {
       'Unspend can\'t block apps until you allow Screen Time access.';
   @override
   String get authAllow => 'Allow access';
+  @override
+  String get accessDisclosureTitle => 'How Unspend blocks apps';
+  @override
+  String get accessDisclosureBody =>
+      'Unspend uses Android\'s Accessibility service to see which app you open. That is how it shows the block screen over the apps you chose and counts time for daily limits.\n\n'
+      'It does not read what is on your screen, and no data is collected or leaves your phone.\n\n'
+      'On the next screen, choose Unspend and switch it on.';
+  @override
+  String get accessDisclosureAgree => 'Agree and continue';
   @override
   String get authDeniedHint =>
       'If no prompt appears, allow access in Settings › Screen Time.';
@@ -794,7 +816,8 @@ class _De extends S {
   String get blockRulesDescription =>
       'Kombiniere beliebige Regeln. Ohne aktive Regeln nutze „Schild aktivieren" für manuelle Kontrolle.';
   @override
-  String appsSelected(int count) => '$count Apps ausgewählt';
+  String appsSelected(int count) =>
+      count == 1 ? '1 App ausgewählt' : '$count Apps ausgewählt';
   @override
   String get selectAppsToBlock => 'Apps zum Blockieren auswählen';
   @override
@@ -857,7 +880,7 @@ class _De extends S {
   @override
   String get noAppsSelected => 'Keine Apps ausgewählt';
   @override
-  String subtitleApps(int count) => '$count Apps';
+  String subtitleApps(int count) => count == 1 ? '1 App' : '$count Apps';
   @override
   String subtitleUsageLimit(String duration) => '$duration Limit';
   @override
@@ -991,6 +1014,15 @@ class _De extends S {
       'Unspend kann Apps erst blockieren, wenn du den Zugriff auf Bildschirmzeit erlaubst.';
   @override
   String get authAllow => 'Zugriff erlauben';
+  @override
+  String get accessDisclosureTitle => 'So blockiert Unspend Apps';
+  @override
+  String get accessDisclosureBody =>
+      'Unspend erkennt über die Android-Bedienungshilfen, welche App du öffnest. So zeigt es den Sperrbildschirm über den von dir gewählten Apps und zählt die Zeit für Tageslimits.\n\n'
+      'Es liest nicht, was auf deinem Bildschirm steht, und es werden keine Daten erhoben oder von deinem Handy übertragen.\n\n'
+      'Wähle auf dem nächsten Bildschirm Unspend und schalte es ein.';
+  @override
+  String get accessDisclosureAgree => 'Zustimmen und weiter';
   @override
   String get authDeniedHint =>
       'Falls keine Abfrage erscheint, erlaube den Zugriff unter Einstellungen › Bildschirmzeit.';
@@ -1223,7 +1255,8 @@ class _Es extends S {
   String get blockRulesDescription =>
       'Combina reglas. Sin reglas activas, usa Activar escudo para control manual.';
   @override
-  String appsSelected(int count) => '$count apps seleccionadas';
+  String appsSelected(int count) =>
+      count == 1 ? '1 app seleccionada' : '$count apps seleccionadas';
   @override
   String get selectAppsToBlock => 'Seleccionar apps a bloquear';
   @override
@@ -1286,7 +1319,7 @@ class _Es extends S {
   @override
   String get noAppsSelected => 'Sin apps seleccionadas';
   @override
-  String subtitleApps(int count) => '$count apps';
+  String subtitleApps(int count) => count == 1 ? '1 app' : '$count apps';
   @override
   String subtitleUsageLimit(String duration) => 'límite de $duration';
   @override
@@ -1418,6 +1451,15 @@ class _Es extends S {
       'Unspend no puede bloquear apps hasta que permitas el acceso a Tiempo de uso.';
   @override
   String get authAllow => 'Permitir acceso';
+  @override
+  String get accessDisclosureTitle => 'Cómo bloquea Unspend las apps';
+  @override
+  String get accessDisclosureBody =>
+      'Unspend usa el servicio de accesibilidad de Android para saber qué app abres. Así muestra la pantalla de bloqueo sobre las apps que elegiste y cuenta el tiempo de los límites diarios.\n\n'
+      'No lee lo que hay en tu pantalla, y no se recopila ningún dato ni sale de tu teléfono.\n\n'
+      'En la siguiente pantalla, elige Unspend y actívalo.';
+  @override
+  String get accessDisclosureAgree => 'Aceptar y continuar';
   @override
   String get authDeniedHint =>
       'Si no aparece ningún aviso, permite el acceso en Ajustes › Tiempo de uso.';
@@ -1649,7 +1691,8 @@ class _Fr extends S {
   String get blockRulesDescription =>
       'Combinez les règles ci-dessous. Sans règle active, utilisez Activer le bouclier pour un contrôle manuel.';
   @override
-  String appsSelected(int count) => '$count apps sélectionnées';
+  String appsSelected(int count) =>
+      count == 1 ? '1 app sélectionnée' : '$count apps sélectionnées';
   @override
   String get selectAppsToBlock => 'Sélectionner les apps à bloquer';
   @override
@@ -1713,7 +1756,7 @@ class _Fr extends S {
   @override
   String get noAppsSelected => 'Aucune app sélectionnée';
   @override
-  String subtitleApps(int count) => '$count apps';
+  String subtitleApps(int count) => count == 1 ? '1 app' : '$count apps';
   @override
   String subtitleUsageLimit(String duration) => 'limite de $duration';
   @override
@@ -1845,6 +1888,15 @@ class _Fr extends S {
       'Unspend ne peut pas bloquer d\'apps tant que vous n\'autorisez pas l\'accès à Temps d\'écran.';
   @override
   String get authAllow => 'Autoriser l\'accès';
+  @override
+  String get accessDisclosureTitle => 'Comment Unspend bloque les apps';
+  @override
+  String get accessDisclosureBody =>
+      'Unspend utilise le service d\'accessibilité d\'Android pour savoir quelle app vous ouvrez. C\'est ainsi qu\'il affiche l\'écran de blocage sur les apps que vous avez choisies et compte le temps des limites quotidiennes.\n\n'
+      'Il ne lit pas ce qui est affiché sur votre écran, et aucune donnée n\'est collectée ni ne quitte votre téléphone.\n\n'
+      'Sur l\'écran suivant, choisissez Unspend et activez-le.';
+  @override
+  String get accessDisclosureAgree => 'Accepter et continuer';
   @override
   String get authDeniedHint =>
       'Si aucune demande n\'apparaît, autorisez l\'accès dans Réglages › Temps d\'écran.';
@@ -2076,7 +2128,11 @@ class _Hr extends S {
   String get blockRulesDescription =>
       'Kombiniraj pravila. Bez aktivnih pravila koristi Aktiviraj štit za ručnu kontrolu.';
   @override
-  String appsSelected(int count) => '$count aplikacija odabrano';
+  String appsSelected(int count) => switch (_hrForm(count)) {
+    _HrForm.one => '$count aplikacija odabrana',
+    _HrForm.few => '$count aplikacije odabrane',
+    _HrForm.many => '$count aplikacija odabrano',
+  };
   @override
   String get selectAppsToBlock => 'Odaberi aplikacije za blokiranje';
   @override
@@ -2137,7 +2193,8 @@ class _Hr extends S {
   @override
   String get noAppsSelected => 'Nema odabranih aplikacija';
   @override
-  String subtitleApps(int count) => '$count aplikacija';
+  String subtitleApps(int count) =>
+      _hrForm(count) == _HrForm.few ? '$count aplikacije' : '$count aplikacija';
   @override
   String subtitleUsageLimit(String duration) => 'ograničenje $duration';
   @override
@@ -2269,6 +2326,15 @@ class _Hr extends S {
       'Unspend ne može blokirati aplikacije dok ne dopustiš pristup Vremenu uporabe zaslona.';
   @override
   String get authAllow => 'Dopusti pristup';
+  @override
+  String get accessDisclosureTitle => 'Kako Unspend blokira aplikacije';
+  @override
+  String get accessDisclosureBody =>
+      'Unspend koristi Androidovu uslugu pristupačnosti kako bi znao koju aplikaciju otvaraš. Tako prikazuje zaslon blokade preko aplikacija koje si odabrao i broji vrijeme za dnevna ograničenja.\n\n'
+      'Ne čita što je na tvom zaslonu i nikakvi se podaci ne prikupljaju niti napuštaju tvoj telefon.\n\n'
+      'Na sljedećem zaslonu odaberi Unspend i uključi ga.';
+  @override
+  String get accessDisclosureAgree => 'Prihvati i nastavi';
   @override
   String get authDeniedHint =>
       'Ako se upit ne pojavi, dopusti pristup u Postavke › Vrijeme uporabe zaslona.';
@@ -2410,4 +2476,16 @@ class _Hr extends S {
     'Custom' => 'Prilagođeno',
     _ => id,
   };
+}
+
+/// The three ways Croatian counts things: 1 aplikacija, 2 aplikacije,
+/// 5 aplikacija.
+enum _HrForm { one, few, many }
+
+_HrForm _hrForm(int count) {
+  final ones = count % 10;
+  final tens = count % 100;
+  if (ones == 1 && tens != 11) return _HrForm.one;
+  if (ones >= 2 && ones <= 4 && (tens < 12 || tens > 14)) return _HrForm.few;
+  return _HrForm.many;
 }

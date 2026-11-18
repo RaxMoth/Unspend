@@ -6,13 +6,21 @@ For the detailed version of each portal step, see [LAUNCH_TODO.md](LAUNCH_TODO.m
 
 Screen Time does not work in the Simulator, so the automated tests cover the
 rules, the app's logic and every screen, but **not** what iOS actually does.
-The blocking engine was rewritten in November 2026 and has not yet run on a
-device. Do this before anything else; each item is a few minutes.
+The blocking engine was rewritten in November 2026. It first ran on an
+iPhone on 18 November 2026, which found a bug in the app picker (fixed); the
+checks below are still open. Do this before anything else; each item is a
+few minutes.
 
 Install a **release** build: `flutter run --release -d <your-iphone>`. A debug
 build only starts while it is connected to the computer — iOS refuses to
 open it from the Home Screen afterwards — and several checks below need the
 app closed for hours.
+
+For the checks that do not depend on the cooldown, a test variant with the
+real blocking and a 5-second cooldown saves a lot of waiting:
+`flutter run --release -t lib/main_dev.dart --dart-define=NATIVE=true
+--dart-define=COOLDOWN_SECONDS=5 -d <your-iphone>`. Never ship it; install
+the normal build again afterwards.
 
 **Diagnostics:** open Settings in the app and **press and hold the version
 line** at the bottom ("Unspend 1.0.0 (1)"). It shows the authorization state,

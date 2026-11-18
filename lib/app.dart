@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/config/router.dart';
@@ -32,14 +33,27 @@ class UnspendApp extends ConsumerWidget {
       themeMode: ref.watch(themeModeProvider),
       builder: (context, child) {
         final media = MediaQuery.of(context);
-        return MediaQuery(
-          data: media.copyWith(
-            textScaler: media.textScaler.clamp(
-              minScaleFactor: AppTextScale.min,
-              maxScaleFactor: AppTextScale.max,
-            ),
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        final onBars = dark ? Brightness.light : Brightness.dark;
+        // The status and navigation bars take the app's background, with
+        // icons that stand out on it.
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: onBars,
+            statusBarBrightness: Theme.of(context).brightness,
+            systemNavigationBarColor: context.colors.background,
+            systemNavigationBarIconBrightness: onBars,
           ),
-          child: AppLifecycleHost(child: child ?? const SizedBox.shrink()),
+          child: MediaQuery(
+            data: media.copyWith(
+              textScaler: media.textScaler.clamp(
+                minScaleFactor: AppTextScale.min,
+                maxScaleFactor: AppTextScale.max,
+              ),
+            ),
+            child: AppLifecycleHost(child: child ?? const SizedBox.shrink()),
+          ),
         );
       },
       locale: Locale(langCode),

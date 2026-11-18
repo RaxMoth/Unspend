@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -14,6 +15,7 @@ import 'package:unspend/core/theme/theme.dart';
 /// real Screen Time bridge.
 Future<void> bootstrap({List<Override> overrides = const []}) async {
   WidgetsFlutterBinding.ensureInitialized();
+  S.android = Platform.isAndroid;
   await S.init();
 
   // An uncaught error is logged; it must not take the app down.

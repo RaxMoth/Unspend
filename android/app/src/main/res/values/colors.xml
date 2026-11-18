@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app's palette (lib/core/theme/app_colors.dart) for the screens that
+     are not drawn by Flutter: launch, app picker, block screen. -->
+<resources>
+    <color name="unspend_background">#F5F5F5</color>
+    <color name="unspend_text">#1A1A1A</color>
+    <color name="unspend_text_secondary">#666666</color>
+    <!-- The brand red as text and as a control on this background. -->
+    <color name="unspend_accent">#D32F2F</color>
+
+    <!-- The block screen is dark in both modes, like the one on iOS. -->
+    <color name="unspend_block_background">#0D0D0D</color>
+    <color name="unspend_block_text">#FFFFFF</color>
+    <color name="unspend_block_text_secondary">#BDBDBD</color>
+    <color name="unspend_accent_fill">#E32723</color>
+    <color name="unspend_on_accent_fill">#FFFFFF</color>
+</resources>

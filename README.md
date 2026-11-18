@@ -1,6 +1,8 @@
 # Unspend
 
-iOS app blocker. Pick the apps that eat your day, set rules, get out of the way.
+App blocker for iPhone, with an Android version in progress
+([Android](#android)). Pick the apps that eat your day, set rules, get out
+of the way.
 
 Blocks are enforced by Apple's Family Controls + ManagedSettings frameworks
 — so they're real, not a willpower test. Profiles can stack four kinds of
@@ -15,7 +17,7 @@ deleted from the phone.
 
 | | |
 |---|---|
-| Platform | iPhone, iOS 16+, portrait and landscape |
+| Platform | iPhone, iOS 16+, portrait and landscape. Android 8+ in progress |
 | Languages | English · German · Spanish · French · Croatian |
 | Storage | 100% on-device. No accounts, no analytics, no network. |
 | PIN | SHA-256 + per-install salt, stored in iOS Keychain |
@@ -132,6 +134,58 @@ after adding a Swift file under `ios/Shared`:
 cd ios && bundle exec ruby ../tools/ios_project.rb
 ```
 
+## Android
+
+The same app, the same rules, a different way of enforcing them. Android
+has no Screen Time API for third-party apps, so Unspend ships an
+**accessibility service** (`BlockerService`) that is told which app comes to
+the front. If an active profile blocks that app, the service puts the block
+screen (`BlockActivity`) over it. The service cannot read what is on screen
+(`canRetrieveWindowContent` is off) and the user switches it on in Android's
+settings after the app has explained what it is for.
+
+```
+android/app/src/main/kotlin/com/maxroth/backyourtime/
+├── core/                  # the rule engine, pure Kotlin, unit-tested
+│   ├── ShieldPolicy.kt    #   same rule as ShieldPolicy.swift
+│   ├── Blocker.kt         #   which profile blocks the app in front
+│   └── SharedStore.kt     #   selections, rules, today's usage, event log
+├── ChannelContract.kt     # the bridge's names (third copy, see Dart/Swift)
+├── ScreenTimeChannel.kt   # answers the same calls as the iOS bridge
+├── BlockerService.kt      # notices the app in front, counts limit time
+├── BlockActivity.kt       # the block screen
+└── AppPickerActivity.kt   # choosing apps (Android has no system picker)
+```
+
+The Dart side is shared. Where it has to differ it asks
+`appPlatformProvider`; wording that names the platform's way of blocking is
+overridden in `lib/core/constants/strings_android.dart`.
+
+```bash
+flutter run -d <android-device-or-emulator>
+cd android && ./gradlew :app:testDebugUnitTest   # the Kotlin rule engine
+```
+
+Unlike the iOS Simulator, an **Android emulator blocks for real**. To walk
+through flows quickly, keep the real bridge and shorten the cooldown:
+
+```bash
+flutter run -t lib/main_dev.dart --dart-define=NATIVE=true --dart-define=COOLDOWN_SECONDS=5
+```
+
+**Where Android stands.** Works, checked on an Android 14 emulator: picking
+apps, blocking, the daily limit, deactivating, the access flow, release
+build. Not there yet:
+
+- Uninstall protection and the child's-phone mode (their settings are
+  hidden on Android). Without them a block can be ended by switching the
+  service off or removing the app.
+- Blocking websites.
+- Everything for Google Play: release signing (the release build is signed
+  with the debug key), store listing, the Accessibility API declaration in
+  the Play Console, an adaptive launcher icon.
+- A run on real phones, especially ones with aggressive battery savers.
+
 ## Design system
 
 Screens are composed from tokens (`lib/core/theme/`) and shared components
@@ -144,7 +198,8 @@ screen.
 
 ```bash
 flutter test                              # unit + widget tests (~1.5 min)
-swift test --package-path ios/Shared      # the native rule engine (seconds)
+swift test --package-path ios/Shared      # the iOS rule engine (seconds)
+(cd android && ./gradlew :app:testDebugUnitTest)   # the Android rule engine
 flutter test integration_test -d <simulator>   # one end-to-end run
 ```
 

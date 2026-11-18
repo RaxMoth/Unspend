@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:unspend/core/providers.dart';
 import 'package:unspend/core/theme/theme.dart';
 import 'package:unspend/core/widgets/widgets.dart';
 
@@ -38,11 +39,14 @@ class _DiagnosticsViewState extends ConsumerState<_DiagnosticsView> {
   Future<String> _load() async {
     final data = await ref.read(screenTimeDatasourceProvider).diagnostics();
     final version = await ref.read(appVersionProvider.future);
+    final system = ref.read(appPlatformProvider) == AppPlatform.android
+        ? 'Android'
+        : 'iOS';
 
     String list(List<String> items) => items.isEmpty ? '–' : items.join('\n');
     return [
       'Unspend ${version.isEmpty ? '?' : version}',
-      'iOS ${Platform.operatingSystemVersion.replaceFirst('Version ', '')}',
+      '$system ${Platform.operatingSystemVersion.replaceFirst('Version ', '')}',
       'Read at ${DateTime.now().toIso8601String()}',
       '',
       'Authorization: ${data.authorization.name}',

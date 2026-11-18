@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
+import 'package:unspend/core/providers.dart';
 import 'package:unspend/core/theme/theme.dart';
 import 'package:unspend/features/app_blocker/data/datasources/screen_time_datasource.dart';
 
@@ -55,6 +56,7 @@ void _matrix(
   ScreenTimeAuthStatus auth = ScreenTimeAuthStatus.approved,
   bool isChildAccount = true,
   String? pin,
+  AppPlatform platform = AppPlatform.ios,
   required _Scene run,
 }) {
   testWidgets(scene, (tester) async {
@@ -81,6 +83,7 @@ void _matrix(
               authAfterRequest: auth,
               isChildAccount: isChildAccount,
               pin: pin,
+              platform: platform,
               cooldown: const Duration(seconds: 300),
             );
             try {
@@ -144,6 +147,46 @@ void main() {
       await app.tap(find.bySemanticsLabel(RegExp('^${app.s.modeChildTitle}')));
       await app.tap(find.text(app.s.next));
       await app.tap(find.text(app.s.authAllow));
+      await _scrollThrough(tester, app);
+    },
+  );
+
+  // Android has its own wording wherever access is mentioned, one page
+  // less in the introduction and a dialog before access is asked for.
+  _matrix(
+    'Android: introduction',
+    platform: AppPlatform.android,
+    onboardingSeen: false,
+    withProfiles: false,
+    auth: ScreenTimeAuthStatus.notDetermined,
+    run: (tester, app) async {
+      for (var page = 0; page < 3; page++) {
+        await _scrollThrough(tester, app);
+        await app.tap(find.text(app.s.next));
+      }
+      expect(find.text(app.s.onboardingTitle4), findsOneWidget);
+      await _scrollThrough(tester, app);
+    },
+  );
+
+  _matrix(
+    'Android: what the access is used for',
+    platform: AppPlatform.android,
+    auth: ScreenTimeAuthStatus.denied,
+    run: (tester, app) async {
+      await app.tap(find.text(app.s.authAllow));
+      expect(find.text(app.s.accessDisclosureTitle), findsOneWidget);
+      await _scrollThrough(tester, app);
+    },
+  );
+
+  _matrix(
+    'Android: settings and privacy policy',
+    platform: AppPlatform.android,
+    run: (tester, app) async {
+      await app.tap(find.byTooltip(app.s.settings));
+      await _scrollThrough(tester, app);
+      await app.tap(find.text(app.s.privacyPolicyTitle));
       await _scrollThrough(tester, app);
     },
   );

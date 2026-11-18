@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown by Android on the screen where the blocker service is switched on. -->
+    <string name="blocker_service_summary">Zeigt den Sperrbildschirm, wenn du eine App öffnest, die eines deiner Profile sperrt.</string>
+    <string name="blocker_service_description">Unspend erkennt mit diesem Dienst, welche App du öffnest. So zeigt es den Sperrbildschirm über Apps, die deine aktiven Profile sperren, und zählt die Zeit für ein Tageslimit.\n\nEs kann nicht lesen, was auf deinem Bildschirm steht, und nichts verlässt dein Handy.</string>
+</resources>

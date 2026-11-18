@@ -1,8 +1,10 @@
 /// The wire contract with the native side: channel names, method names,
 /// argument and reply keys, error codes.
 ///
-/// Every name here exists once more in Swift (`ChannelContract` in
-/// `ios/Runner/ScreenTimeChannel.swift`). Change both together;
+/// Every name here exists once more in Swift
+/// (`ios/Runner/ChannelContract.swift`) and in Kotlin
+/// (`android/app/src/main/kotlin/.../ChannelContract.kt`). Change all three
+/// together;
 /// `test/data/method_channel_screen_time_datasource_test.dart` pins the
 /// Dart half with literal strings so a typo here fails a test.
 library;

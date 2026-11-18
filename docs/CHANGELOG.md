@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 2026-11-18 — First run on an iPhone
+
+#### Fixed
+- **Picked apps were not taken over by the profile.** On a real iPhone the
+  picker stored the selection but answered "cancelled", so the profile kept
+  showing "no apps selected" and could not be activated. UIKit reports that
+  the sheet has gone before it runs the completion of `dismiss`, and the
+  first answer won. The picker now remembers what Save decided and reports
+  that, whichever of the two comes first. (The picker does not run in the
+  Simulator, which is why no test caught it.)
+
+#### Changed
+- `lib/main_dev.dart --dart-define=NATIVE=true` is also the way to test on
+  an iPhone without waiting five minutes for every cooldown; see
+  `docs/PUBLISH.md`, section 0.
+
+### 2026-11-18 — Android foundation
+
+The app now runs on Android and blocks apps there. iOS behaviour is
+unchanged.
+
+#### Added
+- **Android blocking engine** (Kotlin). An accessibility service
+  (`BlockerService`) learns which app comes to the front and puts a block
+  screen over it when an active profile blocks it; it re-checks an open app
+  every 10 seconds, so a schedule that starts, a daily limit that runs out
+  or the midnight reset apply without reopening the app. It cannot read
+  screen content.
+- **Same bridge, third implementation.** `ScreenTimeChannel.kt` answers the
+  calls `ScreenTimeChannel.swift` answers; the Dart side is shared.
+- **Kotlin rule engine** (`android/.../core`) mirroring the Swift one, with
+  31 unit tests; daily limits are counted by the service itself, from the
+  moment a profile is activated.
+- **App picker for Android** (the system has none): every app with a
+  launcher icon except the home screen, phone, settings and Unspend itself,
+  which can never be blocked.
+- **Consent before access.** Before the user is sent to Android's
+  accessibility settings, the app says what the service is used for and asks
+  for a yes (required by Google Play).
+- Android wording in all five languages for everything that names Screen
+  Time or the iPhone (`strings_android.dart`).
+- `appPlatformProvider`: the one place the app asks which platform it is on.
+- CI job that builds the Android app and runs the Kotlin tests.
+- `lib/main_dev.dart --dart-define=NATIVE=true` keeps the real bridge and
+  only shortens the cooldown (for the Android emulator).
+
+#### Changed
+- Status and navigation bars take the app's background colour (both
+  platforms).
+- "1 app selected" instead of "1 apps selected", in every language
+  (Croatian now has its three plural forms).
+
+#### Not on Android yet
+- Uninstall protection, the child's-phone mode, blocking websites, release
+  signing and the Google Play listing.
+
 ### 2026-11-18 — Pre-launch polish
 
 #### Added

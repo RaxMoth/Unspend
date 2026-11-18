@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
+import 'package:unspend/core/providers.dart';
 import 'package:unspend/core/theme/theme.dart';
 import 'package:unspend/core/widgets/widgets.dart';
 
@@ -25,9 +26,11 @@ class AuthorizationBanner extends ConsumerWidget {
     final text = context.text;
     final notifier = ref.read(authorizationProvider.notifier);
 
+    final android = ref.watch(appPlatformProvider) == AppPlatform.android;
+
     Future<void> allow() async {
-      final result = await notifier.request();
-      if (result.approved || !context.mounted) return;
+      final result = await requestAccess(context, ref);
+      if (result == null || result.approved || !context.mounted) return;
       showAppSnackBar(context, accessRefusedMessage(s, result));
     }
 
@@ -70,12 +73,17 @@ class AuthorizationBanner extends ConsumerWidget {
               child: Wrap(
                 alignment: WrapAlignment.end,
                 children: [
-                  if (status == ScreenTimeAuthStatus.denied)
+                  // On Android "Allow access" leads to the same system
+                  // screen, past the explanation of what the access is for.
+                  if (status == ScreenTimeAuthStatus.denied && !android)
                     TextButton(
                       onPressed: notifier.openSettings,
                       child: Text(s.openSettings),
                     ),
-                  TextButton(onPressed: allow, child: Text(s.authAllow)),
+                  TextButton(
+                    onPressed: () => runGuarded(context, allow),
+                    child: Text(s.authAllow),
+                  ),
                 ],
               ),
             ),
