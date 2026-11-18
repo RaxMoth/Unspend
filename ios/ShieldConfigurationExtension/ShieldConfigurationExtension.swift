@@ -47,6 +47,11 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
 
     // MARK: - Helpers
 
+    /// The app's button red (`AppColors.accentFill`, #E32723): white text on
+    /// it meets WCAG AA.
+    private static let buttonColor = UIColor(
+        red: 0xE3 / 255.0, green: 0x27 / 255.0, blue: 0x23 / 255.0, alpha: 1)
+
     private func makeConfiguration(
         name: String?,
         isWebsite: Bool,
@@ -69,7 +74,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .lightGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(text: strings.button, color: .white),
-            primaryButtonBackgroundColor: .systemBlue,
+            primaryButtonBackgroundColor: Self.buttonColor,
             secondaryButtonLabel: nil
         )
     }

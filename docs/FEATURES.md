@@ -45,9 +45,10 @@ What ships, what is open, and what is queued. Last updated 2026-11-17.
 **Engineering**
 - A design system (`docs/DESIGN_SYSTEM.md`): colour, type, spacing, shape,
   motion and haptic tokens, and shared components every screen is built from.
-- 443 Dart tests, 42 Swift tests, one integration test; CI on every push.
+- 450 Dart tests, 42 Swift tests, one integration test; CI on every push.
 - `lib/main_dev.dart` runs the whole app in the Simulator on a fake Screen Time.
-- Debug-only Diagnostics screen (Settings) for what the OS side did.
+- Diagnostics screen for what the OS side did (Settings → press and hold the
+  version line), with a copyable report.
 
 ## 🚧 Open before release
 

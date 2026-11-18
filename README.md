@@ -110,7 +110,9 @@ flutter run -t lib/main_dev.dart --dart-define=DEMO=true
 flutter run -d <your-device>
 ```
 
-Settings → Diagnostics (debug builds) shows what the OS side is doing.
+Use `--release` when the app has to survive being closed (a debug build only
+starts from the tooling). In Settings, press and hold the version line at the
+bottom to open Diagnostics: what the OS side is doing, with a Copy button.
 
 If you build from Xcode directly after `flutter run` on a device and get
 `Framework 'Pods_Runner' not found`, run this once and build again:

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +11,7 @@ import 'package:unspend/shared/providers/theme_mode_provider.dart';
 import '../../data/datasources/screen_time_datasource.dart';
 import '../../data/repositories/pin_repository.dart';
 import '../profile_actions.dart';
+import '../providers/app_version_provider.dart';
 import '../providers/authorization_provider.dart';
 import '../providers/device_mode_provider.dart';
 import '../providers/profiles_provider.dart';
@@ -120,14 +120,6 @@ class _SettingsList extends ConsumerWidget {
           showChevron: true,
           onTap: () => then(() => _showPrivacyPolicy(host)),
         ),
-        if (kDebugMode)
-          _SettingsTile(
-            icon: Icons.bug_report_outlined,
-            title: 'Diagnostics',
-            subtitle: 'Screen Time state and event log (debug builds only)',
-            showChevron: true,
-            onTap: () => then(() => showDiagnosticsSheet(host)),
-          ),
         _SettingsTile(
           icon: Icons.delete_forever_rounded,
           title: s.deleteAllData,
@@ -135,7 +127,39 @@ class _SettingsList extends ConsumerWidget {
           destructive: true,
           onTap: () => then(() => _deleteAllData(host)),
         ),
+        _VersionFooter(
+          onLongPress: () => then(() => showDiagnosticsSheet(host)),
+        ),
       ],
+    );
+  }
+}
+
+/// App name and version at the end of the list.
+///
+/// A long press opens the diagnostics screen: a tool for the developer and
+/// for support, so nothing on screen points to it and VoiceOver does not
+/// announce it.
+class _VersionFooter extends ConsumerWidget {
+  const _VersionFooter({required this.onLongPress});
+
+  final VoidCallback onLongPress;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final version = ref.watch(appVersionProvider).valueOrNull ?? '';
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      excludeFromSemantics: true,
+      onLongPress: onLongPress,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Text(
+          version.isEmpty ? S.current.appName : '${S.current.appName} $version',
+          textAlign: TextAlign.center,
+          style: context.text.caption.tone(context.colors.textSecondary),
+        ),
+      ),
     );
   }
 }

@@ -36,7 +36,9 @@ extension BlockerProfileText on BlockerProfile {
       );
     }
     if (usageLimitEnabled && usageLimitMinutes != null) {
-      parts.add(s.subtitleUsageLimit(usageLimitMinutes!));
+      parts.add(
+        s.subtitleUsageLimit(formatDurationMinutes(usageLimitMinutes!)),
+      );
     }
     if (taskModeEnabled) {
       parts.add(s.subtitleTasks(doneTaskCount, tasks.length));

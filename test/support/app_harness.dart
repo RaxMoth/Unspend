@@ -171,6 +171,20 @@ class AppHarness {
   /// items below the fold are not built (or not exposed to accessibility)
   /// until they are scrolled to, and the floating button covers the corner.
   Future<void> tap(Finder finder) async {
+    await tester.tap(await _reveal(finder));
+    await tester.pumpAndSettle();
+  }
+
+  /// Presses and holds the first match of [finder], scrolling it into view
+  /// first.
+  Future<void> longPress(Finder finder) async {
+    await tester.longPress(await _reveal(finder));
+    await tester.pumpAndSettle();
+  }
+
+  /// Scrolls the first match of [finder] to the middle of the screen and
+  /// returns it.
+  Future<Finder> _reveal(Finder finder) async {
     for (var i = 0; i < 40 && finder.evaluate().isEmpty; i++) {
       final scrollable = frontScrollable;
       if (scrollable.evaluate().isEmpty) break;
@@ -182,8 +196,7 @@ class AppHarness {
     // text a card can be taller than what is visible of the page.
     await Scrollable.ensureVisible(tester.element(target), alignment: 0.5);
     await tester.pumpAndSettle();
-    await tester.tap(target);
-    await tester.pumpAndSettle();
+    return target;
   }
 
   /// Lets [duration] pass one second at a time, as a running countdown

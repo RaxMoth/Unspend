@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 2026-11-18 — Pre-launch polish
+
+#### Added
+- **Version line** at the end of Settings ("Unspend 1.0.0 (1)").
+- **Diagnostics in every build**: press and hold the version line. It was
+  debug-only, but a debug build cannot be reopened from the Home Screen of a
+  real iPhone, which made it useless for the overnight checks. The report now
+  starts with the app and iOS version and can be copied.
+- The app declares its five languages to iOS (`CFBundleLocalizations`), so
+  the system's own screens inside the app — the Screen Time prompt, the app
+  picker's list — follow the phone's language instead of always being
+  English, and the App Store lists the languages.
+
+#### Changed
+- The launch screen has the app's background colour in light and dark mode
+  (it was white, a flash before the dark app).
+- The blocked-app screen's button is the app's red instead of system blue.
+- The daily limit on a profile card reads like everywhere else
+  ("45 min limit", "1 h 30 min limit").
+
 ### 2026-11-18 — Design system and robustness
 
 No change in what the app does; a change in how it is built and how it

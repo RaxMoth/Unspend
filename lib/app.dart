@@ -23,6 +23,8 @@ class UnspendApp extends ConsumerWidget {
     final langCode = ref.watch(localeProvider);
     return MaterialApp.router(
       title: 'Unspend',
+      // The corner banner of debug builds would end up in screenshots.
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       highContrastTheme: AppTheme.lightHighContrast,

@@ -1,16 +1,15 @@
 # Screenshot Spec
 
-Apple requires screenshots for at least one device size. As of 2026 the
-minimum-viable set is **iPhone 6.7"** (1290 × 2796). iPads are optional
-unless you're submitting an iPad-optimized version.
+Apple requires screenshots for at least one device size: the **iPhone 6.9"**
+slot, which takes 1320 × 2868 (what the iPhone 17 Pro Max simulator
+produces) or 1290 × 2796. Unspend is iPhone-only, so no iPad set is needed.
 
 ## Sizes you actually need
 
 | Device class | Resolution (px) | Min count | Used for |
 |---|---|---|---|
-| iPhone 6.7" (iPhone 15/16/17 Pro Max) | 1290 × 2796 | 3 (Apple allows up to 10) | Required |
-| iPhone 6.5" (older Pro Max) | 1242 × 2688 | 0 | Apple now reuses 6.7 if not provided |
-| iPad 13" (M-class iPad Pro) | 2064 × 2752 | 3 | Only if shipping for iPad |
+| iPhone 6.9" (iPhone 16/17 Pro Max) | 1320 × 2868 or 1290 × 2796 | 3 (Apple allows up to 10) | Required |
+| iPhone 6.5" (older Pro Max) | 1242 × 2688 | 0 | Apple reuses the 6.9" set if not provided |
 
 ## Suggested screenshots (5 recommended)
 
@@ -47,10 +46,20 @@ Option A — On device (most realistic for the shield screenshot):
 # Then transfer via AirDrop / Photos
 ```
 
-Option B — Simulator (fastest):
+Option B — Simulator (fastest). The demo build starts with sample profiles
+and has no debug banner:
 ```
-xcrun simctl io booted screenshot ~/Desktop/dashboard.png
+flutter build ios --simulator --debug -t lib/main_dev.dart --dart-define=DEMO=true
+xcrun simctl boot "iPhone 17 Pro Max"
+xcrun simctl ui booted appearance dark
+xcrun simctl status_bar booted override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+xcrun simctl install booted build/ios/iphonesimulator/Runner.app
+xcrun simctl launch booted com.maxroth.backyourtime
+# open the screen you want, then:
+xcrun simctl io booted screenshot store/screenshots/iphone-6.9/02-rules.png
 ```
+`01-dashboard.png` was taken this way. The shield (screenshot 3) only exists
+on a real iPhone.
 
 Option C — Use a screenshot framing tool (adds a phone bezel + caption):
 - https://app-mockup.com (free, in-browser)
@@ -61,15 +70,12 @@ Option C — Use a screenshot framing tool (adds a phone bezel + caption):
 
 ```
 store/screenshots/
-  iphone-6.7/
-    01-dashboard.png       (1290×2796)
+  iphone-6.9/
+    01-dashboard.png       (1320×2868)
     02-rules.png
     03-shield.png
     04-tasks.png
     05-settings.png
-  ipad-13/                 (optional)
-    01-dashboard.png       (2064×2752)
-    ...
 ```
 
 Upload order in App Store Connect matters — the first screenshot is the

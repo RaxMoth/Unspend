@@ -147,7 +147,9 @@ abstract class S {
   // ── Subtitle helpers (used by entity) ────────────────────────────────────
   String get noAppsSelected;
   String subtitleApps(int count);
-  String subtitleUsageLimit(int minutes);
+
+  /// [duration] is already formatted, e.g. `45 min` or `1 h 30 min`.
+  String subtitleUsageLimit(String duration);
   String subtitleTasks(int done, int total);
   String get subtitleManual;
 
@@ -435,7 +437,7 @@ class _En extends S {
   @override
   String subtitleApps(int count) => '$count apps';
   @override
-  String subtitleUsageLimit(int minutes) => '${minutes}min limit';
+  String subtitleUsageLimit(String duration) => '$duration limit';
   @override
   String subtitleTasks(int done, int total) => '$done/$total tasks';
   @override
@@ -857,7 +859,7 @@ class _De extends S {
   @override
   String subtitleApps(int count) => '$count Apps';
   @override
-  String subtitleUsageLimit(int minutes) => '$minutes Min Limit';
+  String subtitleUsageLimit(String duration) => '$duration Limit';
   @override
   String subtitleTasks(int done, int total) => '$done/$total Aufgaben';
   @override
@@ -1286,7 +1288,7 @@ class _Es extends S {
   @override
   String subtitleApps(int count) => '$count apps';
   @override
-  String subtitleUsageLimit(int minutes) => '${minutes}min límite';
+  String subtitleUsageLimit(String duration) => 'límite de $duration';
   @override
   String subtitleTasks(int done, int total) => '$done/$total tareas';
   @override
@@ -1713,7 +1715,7 @@ class _Fr extends S {
   @override
   String subtitleApps(int count) => '$count apps';
   @override
-  String subtitleUsageLimit(int minutes) => '${minutes}min limite';
+  String subtitleUsageLimit(String duration) => 'limite de $duration';
   @override
   String subtitleTasks(int done, int total) => '$done/$total tâches';
   @override
@@ -2137,7 +2139,7 @@ class _Hr extends S {
   @override
   String subtitleApps(int count) => '$count aplikacija';
   @override
-  String subtitleUsageLimit(int minutes) => '${minutes}min ograničenje';
+  String subtitleUsageLimit(String duration) => 'ograničenje $duration';
   @override
   String subtitleTasks(int done, int total) => '$done/$total zadataka';
   @override

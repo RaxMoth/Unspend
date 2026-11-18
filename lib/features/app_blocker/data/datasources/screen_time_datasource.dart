@@ -271,7 +271,7 @@ class ShieldStrings {
   );
 }
 
-/// What the OS side knows, for the debug-only diagnostics screen.
+/// What the OS side knows, for the diagnostics screen.
 class ScreenTimeDiagnostics {
   const ScreenTimeDiagnostics({
     required this.authorization,
@@ -351,4 +351,7 @@ abstract interface class ScreenTimeDatasource {
   Future<void> setShieldStrings(ShieldStrings strings);
 
   Future<ScreenTimeDiagnostics> diagnostics();
+
+  /// Version and build number of the running app, as `1.0.0 (1)`.
+  Future<String> appVersion();
 }

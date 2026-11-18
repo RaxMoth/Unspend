@@ -85,6 +85,9 @@ final class ScreenTimeChannel {
             }
             UIApplication.shared.open(url) { opened in result(opened) }
 
+        case .appVersion:
+            result(Self.appVersion)
+
         case .showPicker:
             // Served by AppPickerChannel on its own channel.
             result(FlutterMethodNotImplemented)
@@ -140,7 +143,7 @@ final class ScreenTimeChannel {
         case .diagnostics:
             return diagnostics(shared: shared)
         case .authorizationStatus, .requestAuthorization, .revokeAuthorization,
-             .openSettings, .showPicker:
+             .openSettings, .appVersion, .showPicker:
             return FlutterMethodNotImplemented
         }
     }
@@ -507,6 +510,14 @@ final class ScreenTimeChannel {
     }
 
     // MARK: - Diagnostics
+
+    /// Version and build number of the running app, as "1.0.0 (1)".
+    private static var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
+    }
 
     private func diagnostics(shared: SharedStore) -> [String: Any] {
         let active = shared.activeProfileIds

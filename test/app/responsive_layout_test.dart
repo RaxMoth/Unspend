@@ -175,6 +175,16 @@ void main() {
     },
   );
 
+  _matrix(
+    'diagnostics sheet',
+    run: (tester, app) async {
+      await app.tap(find.byTooltip(app.s.settings));
+      await app.longPress(find.textContaining('Unspend 1.0.0'));
+      expect(find.text('Diagnostics'), findsOneWidget);
+      await _scrollThrough(tester, app);
+    },
+  );
+
   for (final entry in <String, String Function(S)>{
     'who uses this iPhone sheet': (s) => s.whoUsesLabel,
     'uninstall protection sheet': (s) => s.uninstallProtection,
