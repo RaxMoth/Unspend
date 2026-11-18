@@ -2,6 +2,8 @@ import 'dart:io' show Platform;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../storage_keys.dart';
+
 /// Centralised user-facing strings with locale support.
 /// Supported: English (en), Deutsch (de), Español (es), Français (fr), Hrvatski (hr).
 ///
@@ -9,8 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Access via the top-level [S] instance, e.g. `S.current.appName`.
 abstract class S {
   S._();
-
-  static const _kLocaleKey = 'app_locale';
 
   /// All supported language codes.
   static const supportedLocales = ['en', 'de', 'es', 'fr', 'hr'];
@@ -30,7 +30,7 @@ abstract class S {
   static Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(_kLocaleKey);
+      final saved = prefs.getString(PrefKeys.locale);
       if (saved != null) {
         current = _forCode(saved);
       } else {
@@ -47,7 +47,7 @@ abstract class S {
     current = _forCode(langCode);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kLocaleKey, langCode);
+      await prefs.setString(PrefKeys.locale, langCode);
     } catch (_) {
       // best-effort persist
     }
@@ -277,6 +277,7 @@ abstract class S {
   String get uninstallProtectionBody;
   String get stateOn;
   String get stateOff;
+  String get retry;
   String tasksProgress(int done, int total);
 
   /// Display name for a [ProfileColor.name] identifier.
@@ -671,6 +672,8 @@ class _En extends S {
   String get stateOn => 'On';
   @override
   String get stateOff => 'Off';
+  @override
+  String get retry => 'Try again';
   @override
   String tasksProgress(int done, int total) => '$done of $total tasks done';
   @override
@@ -1095,6 +1098,8 @@ class _De extends S {
   String get stateOn => 'Ein';
   @override
   String get stateOff => 'Aus';
+  @override
+  String get retry => 'Erneut versuchen';
   @override
   String tasksProgress(int done, int total) =>
       '$done von $total Aufgaben erledigt';
@@ -1521,6 +1526,8 @@ class _Es extends S {
   @override
   String get stateOff => 'Desactivado';
   @override
+  String get retry => 'Reintentar';
+  @override
   String tasksProgress(int done, int total) => '$done de $total tareas hechas';
   @override
   String colorName(String id) => switch (id) {
@@ -1946,6 +1953,8 @@ class _Fr extends S {
   @override
   String get stateOff => 'Désactivé';
   @override
+  String get retry => 'Réessayer';
+  @override
   String tasksProgress(int done, int total) =>
       '$done sur $total tâches terminées';
   @override
@@ -2367,6 +2376,8 @@ class _Hr extends S {
   String get stateOn => 'Uključeno';
   @override
   String get stateOff => 'Isključeno';
+  @override
+  String get retry => 'Pokušaj ponovno';
   @override
   String tasksProgress(int done, int total) =>
       '$done od $total zadataka dovršeno';

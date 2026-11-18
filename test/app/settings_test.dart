@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/providers.dart';
+import 'package:unspend/core/storage_keys.dart';
+import 'package:unspend/core/theme/theme.dart';
 import 'package:unspend/core/widgets/app_switch.dart';
 import 'package:unspend/features/app_blocker/data/repositories/pin_repository.dart';
+import 'package:unspend/features/app_blocker/domain/entities/blocker_profile.dart';
 import 'package:unspend/features/app_blocker/presentation/native_strings.dart';
 import 'package:unspend/features/app_blocker/presentation/providers/device_mode_provider.dart';
 import 'package:unspend/features/app_blocker/presentation/providers/uninstall_protection_provider.dart';
@@ -13,7 +15,7 @@ import '../support/app_harness.dart';
 
 void main() {
   /// Profiles with nothing active.
-  List<dynamic> idleProfiles() =>
+  List<BlockerProfile> idleProfiles() =>
       sampleProfiles().where((p) => !p.isActive).toList();
 
   Future<void> openSetting(
@@ -116,7 +118,7 @@ void main() {
 
   group('delete all data', () {
     testWidgets('asks first; cancelling deletes nothing', (tester) async {
-      final app = await pumpUnspend(tester, profiles: [...idleProfiles()]);
+      final app = await pumpUnspend(tester, profiles: idleProfiles());
       await openSetting(tester, app, app.s.deleteAllData);
       expect(find.text(app.s.deleteAllDataWarning), findsOneWidget);
 
@@ -132,7 +134,7 @@ void main() {
     ) async {
       final app = await pumpUnspend(
         tester,
-        profiles: [...idleProfiles()],
+        profiles: idleProfiles(),
         pin: '2468',
       );
       await openSetting(tester, app, app.s.deleteAllData);
@@ -143,7 +145,7 @@ void main() {
       expect(app.screenTime.calls, contains('resetAll'));
       expect(app.profiles, isEmpty);
       expect(await app.pins.hasPin(), isFalse);
-      expect(app.prefs.getBool(kHasSeenOnboardingKey), isNull);
+      expect(app.prefs.getBool(PrefKeys.onboardingSeen), isNull);
       expect(find.text(app.s.onboardingTitle1), findsOneWidget);
     });
 
@@ -381,9 +383,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(app.container.read(themeModeProvider), ThemeMode.light);
-      expect(app.prefs.getString(ThemeModeNotifier.storageKey), 'light');
-      final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-      expect(scaffold.backgroundColor, const Color(0xFFF5F5F5));
+      expect(app.prefs.getString(PrefKeys.themeMode), 'light');
+      expect(
+        tester.element(find.byType(Scaffold).first).colors,
+        AppColors.light,
+      );
     });
 
     testWidgets('the privacy policy can be read', (tester) async {

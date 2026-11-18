@@ -12,31 +12,33 @@ import UIKit
 /// and the profile's shield. The blocking rule itself lives in `ShieldPolicy`
 /// and is applied by `ShieldEnforcer`, shared with the monitor extension.
 ///
-/// Error codes returned to Dart:
-///   NOT_AUTHORIZED, NO_SELECTION, TOO_MANY_APPS, SCHEDULE_TOO_SHORT,
-///   TOO_MANY_ACTIVITIES, MONITOR_FAILED, NO_APP_GROUP, INVALID_ARGS,
-///   PROFILE_ACTIVE, REVOKE_FAILED, and from requesting access:
-///   NOT_CHILD_ACCOUNT, AUTH_CONFLICT, NETWORK
+/// Names of methods, arguments, replies and error codes are in
+/// `ChannelContract`, which mirrors the Dart side.
 final class ScreenTimeChannel {
-    static let channelName = "com.maxroth.backyourtime/screentime"
+    private typealias Method = ChannelContract.Method
+    private typealias Arg = ChannelContract.Arg
+    private typealias Reply = ChannelContract.Reply
+    private typealias ErrorCode = ChannelContract.ErrorCode
 
     private struct ChannelError: Error {
-        let code: String
+        let code: ErrorCode
         let message: String
 
+        var flutterError: FlutterError { code.error(message) }
+
         static let noAppGroup = ChannelError(
-            code: "NO_APP_GROUP", message: "The shared App Group is not available")
+            code: .noAppGroup, message: "The shared App Group is not available")
         static let notAuthorized = ChannelError(
-            code: "NOT_AUTHORIZED", message: "Screen Time access has not been granted")
+            code: .notAuthorized, message: "Screen Time access has not been granted")
         static let noSelection = ChannelError(
-            code: "NO_SELECTION", message: "No apps selected for this profile")
+            code: .noSelection, message: "No apps selected for this profile")
         static let tooManyApps = ChannelError(
-            code: "TOO_MANY_APPS", message: "Too many individually selected apps or websites")
+            code: .tooManyApps, message: "Too many individually selected apps or websites")
         static let scheduleTooShort = ChannelError(
-            code: "SCHEDULE_TOO_SHORT", message: "The schedule must be at least 15 minutes long")
+            code: .scheduleTooShort, message: "The schedule must be at least 15 minutes long")
 
         static func invalidArgs(_ what: String) -> ChannelError {
-            ChannelError(code: "INVALID_ARGS", message: what)
+            ChannelError(code: .invalidArgs, message: what)
         }
     }
 
@@ -44,11 +46,11 @@ final class ScreenTimeChannel {
 
     /// Screen Time calls talk to system daemons and can take a noticeable
     /// moment; running them here keeps the UI thread free.
-    private let queue = DispatchQueue(label: "com.maxroth.backyourtime.screentime", qos: .userInitiated)
+    private let queue = DispatchQueue(label: ChannelContract.workQueueLabel, qos: .userInitiated)
 
     func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
-            name: ScreenTimeChannel.channelName,
+            name: ChannelContract.screenTimeChannel,
             binaryMessenger: registrar.messenger()
         )
         channel.setMethodCallHandler { [weak self] call, result in
@@ -59,86 +61,92 @@ final class ScreenTimeChannel {
     // MARK: - Dispatch
 
     private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let method = Method(rawValue: call.method) else {
+            result(FlutterMethodNotImplemented)
+            return
+        }
         let args = call.arguments as? [String: Any] ?? [:]
 
-        switch call.method {
-        case "authorizationStatus":
+        switch method {
+        case .authorizationStatus:
             result(Self.authorizationStatus)
 
-        case "requestAuthorization":
-            let member: FamilyControlsMember = (args["member"] as? String) == "child" ? .child : .individual
-            requestAuthorization(for: member, result: result)
+        case .requestAuthorization:
+            let wantsChild = (args[Arg.member] as? String) == Arg.memberChild
+            requestAuthorization(for: wantsChild ? .child : .individual, result: result)
 
-        case "revokeAuthorization":
+        case .revokeAuthorization:
             revokeAuthorization(result: result)
 
-        case "openSettings":
+        case .openSettings:
             guard let url = URL(string: UIApplication.openSettingsURLString) else {
                 result(false)
                 return
             }
             UIApplication.shared.open(url) { opened in result(opened) }
 
-        case "activate", "deactivate", "setTasksDone", "sync", "deleteProfile",
-             "resetAll", "setShieldStrings", "setRemovalLockEnabled", "diagnostics":
-            let method = call.method
+        case .showPicker:
+            // Served by AppPickerChannel on its own channel.
+            result(FlutterMethodNotImplemented)
+
+        case .activate, .deactivate, .setTasksDone, .sync, .deleteProfile,
+             .resetAll, .setShieldStrings, .setRemovalLockEnabled, .diagnostics:
             queue.async { [weak self] in
                 guard let self else { return }
                 let outcome: Any?
                 do {
                     outcome = try self.perform(method, args: args)
                 } catch let error as ChannelError {
-                    outcome = FlutterError(code: error.code, message: error.message, details: nil)
+                    outcome = error.flutterError
                 } catch {
-                    outcome = FlutterError(
-                        code: "MONITOR_FAILED", message: error.localizedDescription, details: nil)
+                    outcome = ErrorCode.monitorFailed.error(error.localizedDescription)
                 }
                 DispatchQueue.main.async { result(outcome) }
             }
-
-        default:
-            result(FlutterMethodNotImplemented)
         }
     }
 
-    private func perform(_ method: String, args: [String: Any]) throws -> Any? {
+    /// The methods that touch the App Group, monitors or shields. Runs on
+    /// the work queue.
+    private func perform(_ method: Method, args: [String: Any]) throws -> Any? {
         guard let shared = SharedStore() else { throw ChannelError.noAppGroup }
 
         switch method {
-        case "activate":
+        case .activate:
             return try activate(args, shared: shared)
-        case "deactivate":
+        case .deactivate:
             deactivate(try profileId(in: args), shared: shared)
             return true
-        case "setTasksDone":
+        case .setTasksDone:
             return setTasksDone(
-                try profileId(in: args), done: args["done"] as? Bool ?? false, shared: shared)
-        case "sync":
+                try profileId(in: args), done: args[Arg.done] as? Bool ?? false, shared: shared)
+        case .sync:
             return sync(args, shared: shared)
-        case "deleteProfile":
+        case .deleteProfile:
             let id = try profileId(in: args)
             deactivate(id, shared: shared)
             shared.removeProfile(id)
             return true
-        case "resetAll":
-            resetAll(extraProfileIds: args["profileIds"] as? [String] ?? [], shared: shared)
+        case .resetAll:
+            resetAll(extraProfileIds: args[Arg.profileIds] as? [String] ?? [], shared: shared)
             return true
-        case "setShieldStrings":
+        case .setShieldStrings:
             try setShieldStrings(args, shared: shared)
             return true
-        case "setRemovalLockEnabled":
-            shared.setRemovalLockEnabled(args["enabled"] as? Bool ?? true)
+        case .setRemovalLockEnabled:
+            shared.setRemovalLockEnabled(args[Arg.enabled] as? Bool ?? true)
             ShieldEnforcer.updateRemovalLock(shared: shared)
             return true
-        case "diagnostics":
+        case .diagnostics:
             return diagnostics(shared: shared)
-        default:
+        case .authorizationStatus, .requestAuthorization, .revokeAuthorization,
+             .openSettings, .showPicker:
             return FlutterMethodNotImplemented
         }
     }
 
     private func profileId(in args: [String: Any]) throws -> String {
-        guard let id = args["profileId"] as? String, !id.isEmpty else {
+        guard let id = args[Arg.profileId] as? String, !id.isEmpty else {
             throw ChannelError.invalidArgs("Missing profileId")
         }
         return id
@@ -152,10 +160,10 @@ final class ScreenTimeChannel {
 
     private static var authorizationStatus: String {
         switch AuthorizationCenter.shared.authorizationStatus {
-        case .approved: return "approved"
-        case .denied: return "denied"
-        case .notDetermined: return "notDetermined"
-        @unknown default: return "notDetermined"
+        case .approved: return Reply.approved
+        case .denied: return Reply.denied
+        case .notDetermined: return Reply.notDetermined
+        @unknown default: return Reply.notDetermined
         }
     }
 
@@ -169,32 +177,27 @@ final class ScreenTimeChannel {
         #if targetEnvironment(simulator)
         // Family Controls is not available in the Simulator; the request
         // never completes there.
-        result("denied")
+        result(Reply.denied)
         #else
         Task { @MainActor in
             do {
                 try await AuthorizationCenter.shared.requestAuthorization(for: member)
-                result("approved")
+                result(Reply.approved)
             } catch let error as FamilyControlsError {
                 switch error {
                 case .invalidAccountType where member == .child:
-                    result(FlutterError(
-                        code: "NOT_CHILD_ACCOUNT",
-                        message: "This device is not signed in as a child in Family Sharing",
-                        details: nil))
+                    result(ErrorCode.notChildAccount.error(
+                        "This device is not signed in as a child in Family Sharing"))
                 case .authorizationConflict:
-                    result(FlutterError(
-                        code: "AUTH_CONFLICT",
-                        message: "Another app already manages Screen Time on this device",
-                        details: nil))
+                    result(ErrorCode.authorizationConflict.error(
+                        "Another app already manages Screen Time on this device"))
                 case .networkError:
-                    result(FlutterError(
-                        code: "NETWORK", message: "No connection to approve access", details: nil))
+                    result(ErrorCode.network.error("No connection to approve access"))
                 default:
-                    result(Self.isAuthorized ? "approved" : "denied")
+                    result(Self.isAuthorized ? Reply.approved : Reply.denied)
                 }
             } catch {
-                result(Self.isAuthorized ? "approved" : "denied")
+                result(Self.isAuthorized ? Reply.approved : Reply.denied)
             }
         }
         #endif
@@ -205,8 +208,7 @@ final class ScreenTimeChannel {
     /// every block when access goes away.
     private func revokeAuthorization(result: @escaping FlutterResult) {
         if let shared = SharedStore(), !shared.activeProfileIds.isEmpty {
-            result(FlutterError(
-                code: "PROFILE_ACTIVE", message: "Deactivate every profile first", details: nil))
+            result(ErrorCode.profileActive.error("Deactivate every profile first"))
             return
         }
         #if targetEnvironment(simulator)
@@ -218,8 +220,7 @@ final class ScreenTimeChannel {
                 case .success:
                     result(true)
                 case .failure(let error):
-                    result(FlutterError(
-                        code: "REVOKE_FAILED", message: error.localizedDescription, details: nil))
+                    result(ErrorCode.revokeFailed.error(error.localizedDescription))
                 }
             }
         }
@@ -264,12 +265,12 @@ final class ScreenTimeChannel {
 
     private func makeRules(_ args: [String: Any], now: Date) throws -> ProfileRules {
         var rules = ProfileRules(
-            name: args["name"] as? String ?? "",
-            taskModeEnabled: args["taskModeEnabled"] as? Bool ?? false
+            name: args[Arg.name] as? String ?? "",
+            taskModeEnabled: args[Arg.taskModeEnabled] as? Bool ?? false
         )
 
-        if let start = args["scheduleStartMinute"] as? Int,
-           let end = args["scheduleEndMinute"] as? Int {
+        if let start = args[Arg.scheduleStartMinute] as? Int,
+           let end = args[Arg.scheduleEndMinute] as? Int {
             let validRange = 0..<ShieldPolicy.minutesPerDay
             guard validRange.contains(start), validRange.contains(end) else {
                 throw ChannelError.invalidArgs("Schedule times are out of range")
@@ -281,7 +282,7 @@ final class ScreenTimeChannel {
             rules.scheduleEndMinute = end
         }
 
-        if let limit = args["usageLimitMinutes"] as? Int {
+        if let limit = args[Arg.usageLimitMinutes] as? Int {
             guard (1..<ShieldPolicy.minutesPerDay).contains(limit) else {
                 throw ChannelError.invalidArgs("Usage limit is out of range")
             }
@@ -289,7 +290,7 @@ final class ScreenTimeChannel {
             rules.limitMonitorStartedAt = now
         }
 
-        if rules.taskModeEnabled, args["tasksDone"] as? Bool == true {
+        if rules.taskModeEnabled, args[Arg.tasksDone] as? Bool == true {
             rules.tasksDoneDay = DayKey.string(for: now)
         }
         return rules
@@ -324,11 +325,11 @@ final class ScreenTimeChannel {
     /// enforced any more is left out of the reply, so the app can show it as
     /// inactive.
     private func sync(_ args: [String: Any], shared: SharedStore) -> [String: Any] {
-        let entries = args["profiles"] as? [[String: Any]] ?? []
+        let entries = args[Arg.profiles] as? [[String: Any]] ?? []
         var tasksDone: [String: Bool] = [:]
         for entry in entries {
-            if let id = entry["profileId"] as? String {
-                tasksDone[id] = entry["tasksDone"] as? Bool ?? false
+            if let id = entry[Arg.profileId] as? String {
+                tasksDone[id] = entry[Arg.tasksDone] as? Bool ?? false
             }
         }
 
@@ -382,8 +383,8 @@ final class ScreenTimeChannel {
 
     private func status(of profileId: String, shared: SharedStore, now: Date) -> [String: Any] {
         [
-            "shielded": ShieldEnforcer.isShielded(profileId),
-            "limitReached": shared.limitReachedDay(for: profileId) == DayKey.string(for: now),
+            Reply.shielded: ShieldEnforcer.isShielded(profileId),
+            Reply.limitReached: shared.limitReachedDay(for: profileId) == DayKey.string(for: now),
         ]
     }
 
@@ -467,7 +468,7 @@ final class ScreenTimeChannel {
             switch monitoring {
             case .excessiveActivities:
                 return ChannelError(
-                    code: "TOO_MANY_ACTIVITIES", message: "Too many profiles are monitored at once")
+                    code: .tooManyActivities, message: "Too many profiles are monitored at once")
             case .intervalTooShort:
                 return .scheduleTooShort
             case .unauthorized:
@@ -476,7 +477,7 @@ final class ScreenTimeChannel {
                 break
             }
         }
-        return ChannelError(code: "MONITOR_FAILED", message: error.localizedDescription)
+        return ChannelError(code: .monitorFailed, message: error.localizedDescription)
     }
 
     // MARK: - Reset
@@ -490,7 +491,7 @@ final class ScreenTimeChannel {
         }
         // Stores used by builds that predate per-profile stores.
         ManagedSettingsStore().clearAllSettings()
-        ManagedSettingsStore(named: ManagedSettingsStore.Name("unspend")).clearAllSettings()
+        ManagedSettingsStore(named: ManagedSettingsStore.Name(ActivityNames.legacyStore)).clearAllSettings()
         ShieldEnforcer.clearRemovalLock()
         shared.removeEverything()
     }
@@ -510,12 +511,12 @@ final class ScreenTimeChannel {
     private func diagnostics(shared: SharedStore) -> [String: Any] {
         let active = shared.activeProfileIds
         return [
-            "authorization": Self.authorizationStatus,
-            "activeProfileIds": active,
-            "shieldedProfileIds": active.filter(ShieldEnforcer.isShielded),
-            "removalLocked": ShieldEnforcer.isRemovalLocked,
-            "monitoredActivities": center.activities.map(\.rawValue).sorted(),
-            "eventLog": shared.eventLog,
+            Reply.authorization: Self.authorizationStatus,
+            Reply.activeProfileIds: active,
+            Reply.shieldedProfileIds: active.filter(ShieldEnforcer.isShielded),
+            Reply.removalLocked: ShieldEnforcer.isRemovalLocked,
+            Reply.monitoredActivities: center.activities.map(\.rawValue).sorted(),
+            Reply.eventLog: shared.eventLog,
         ]
     }
 }

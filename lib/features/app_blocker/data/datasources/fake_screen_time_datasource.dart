@@ -43,6 +43,10 @@ class FakeScreenTimeDatasource implements ScreenTimeDatasource {
   /// When set, the next call that can fail throws this once.
   ScreenTimeException? failNext;
 
+  /// When set, the next call that can fail throws this once — anything at
+  /// all, to exercise how the app copes with a failure nobody anticipated.
+  Object? crashNext;
+
   /// Every call in order, e.g. `activate:<id>`, `setTasksDone:<id>:true`.
   final List<String> calls = [];
 
@@ -68,6 +72,13 @@ class FakeScreenTimeDatasource implements ScreenTimeDatasource {
   bool isShielded(String profileId) => _status(profileId).shielded;
 
   void _failIfRequested() {
+    final crash = crashNext;
+    if (crash != null) {
+      crashNext = null;
+      // Deliberately not an Error or Exception subtype: that is the point.
+      // ignore: only_throw_errors
+      throw crash;
+    }
     final failure = failNext;
     if (failure != null) {
       failNext = null;

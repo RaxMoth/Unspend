@@ -28,6 +28,3 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 final cooldownDurationProvider = Provider<Duration>(
   (ref) => const Duration(minutes: 5),
 );
-
-/// SharedPreferences key: has the user finished onboarding?
-const kHasSeenOnboardingKey = 'has_seen_onboarding';

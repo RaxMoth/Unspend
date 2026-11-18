@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unspend/core/security/pin_hasher.dart';
+import 'package:unspend/core/storage_keys.dart';
 import 'package:unspend/features/app_blocker/data/repositories/pin_repository.dart';
 
 void main() {
@@ -52,8 +53,8 @@ void main() {
 
       final all = await storage.readAll();
       expect(all.values, isNot(contains('2468')));
-      expect(all[PinRepository.hashKey], hasLength(64));
-      expect(all[PinRepository.saltKey], hasLength(32));
+      expect(all[SecureKeys.pinHash], hasLength(64));
+      expect(all[SecureKeys.pinSalt], hasLength(32));
     });
 
     test('setting a new PIN replaces the old one', () async {
@@ -169,15 +170,15 @@ void main() {
       const salt = 'abcd';
       final repo = await build(
         preferences: {
-          PinRepository.saltKey: salt,
-          PinRepository.hashKey: PinHasher.hash(salt, '4321'),
+          SecureKeys.pinSalt: salt,
+          SecureKeys.pinHash: PinHasher.hash(salt, '4321'),
         },
       );
 
       expect(await repo.hasPin(), isTrue);
       expect(await repo.verify('4321'), isA<PinCorrect>());
-      expect(prefs.getString(PinRepository.hashKey), isNull);
-      expect(prefs.getString(PinRepository.saltKey), isNull);
+      expect(prefs.getString(SecureKeys.pinHash), isNull);
+      expect(prefs.getString(SecureKeys.pinSalt), isNull);
     });
 
     test('an existing Keychain PIN wins over a legacy one', () async {
@@ -185,18 +186,18 @@ void main() {
       const salt = 'new';
       final repo = await build(
         keychain: {
-          PinRepository.saltKey: salt,
-          PinRepository.hashKey: PinHasher.hash(salt, '9999'),
+          SecureKeys.pinSalt: salt,
+          SecureKeys.pinHash: PinHasher.hash(salt, '9999'),
         },
         preferences: {
-          PinRepository.saltKey: legacySalt,
-          PinRepository.hashKey: PinHasher.hash(legacySalt, '1111'),
+          SecureKeys.pinSalt: legacySalt,
+          SecureKeys.pinHash: PinHasher.hash(legacySalt, '1111'),
         },
       );
 
       expect(await repo.verify('9999'), isA<PinCorrect>());
       expect(await repo.verify('1111'), isA<PinWrong>());
-      expect(prefs.getString(PinRepository.hashKey), isNull);
+      expect(prefs.getString(SecureKeys.pinHash), isNull);
     });
   });
 }

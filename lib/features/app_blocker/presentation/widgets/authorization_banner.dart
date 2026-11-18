@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/app_snackbar.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
 import '../../data/datasources/screen_time_datasource.dart';
 import '../profile_actions.dart';
@@ -20,72 +20,62 @@ class AuthorizationBanner extends ConsumerWidget {
     if (status == null || status == ScreenTimeAuthStatus.approved) {
       return const SizedBox.shrink();
     }
+    final s = S.current;
+    final colors = context.colors;
+    final text = context.text;
     final notifier = ref.read(authorizationProvider.notifier);
-    final denied = status == ScreenTimeAuthStatus.denied;
 
     Future<void> allow() async {
       final result = await notifier.request();
       if (result.approved || !context.mounted) return;
-      showAppSnackBar(context, accessRefusedMessage(S.current, result));
+      showAppSnackBar(context, accessRefusedMessage(s, result));
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: kAccent.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(kRadius),
-          border: Border.all(color: kAccent.withValues(alpha: 0.4)),
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: AppCard(
+        tint: colors.accent,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.sm,
         ),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.lock_person_rounded, color: kAccent, size: 22),
-                const SizedBox(width: 12),
+                Icon(Icons.lock_person_rounded, color: colors.accent),
+                Gap.hMd,
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(s.authBannerTitle, style: text.label),
+                      Gap.vXs,
                       Text(
-                        S.current.authBannerTitle,
-                        style: TextStyle(
-                          color: kTextPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        S.current.authBannerBody,
-                        style: TextStyle(color: kTextSecondary, fontSize: 13),
+                        s.authBannerBody,
+                        style: text.bodySmall.tone(colors.textSecondary),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            Gap.vXs,
             Align(
               alignment: AlignmentDirectional.centerEnd,
               child: Wrap(
                 alignment: WrapAlignment.end,
                 children: [
-                  if (denied)
+                  if (status == ScreenTimeAuthStatus.denied)
                     TextButton(
                       onPressed: notifier.openSettings,
-                      child: Text(S.current.openSettings),
+                      child: Text(s.openSettings),
                     ),
-                  TextButton(
-                    onPressed: allow,
-                    child: Text(
-                      S.current.authAllow,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
+                  TextButton(onPressed: allow, child: Text(s.authAllow)),
                 ],
               ),
             ),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/pin_field.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
 import '../../data/repositories/pin_repository.dart';
 
@@ -15,6 +15,7 @@ Future<bool> showPinSetupDialog(
   BuildContext context, {
   required String cancelLabel,
 }) async {
+  if (!isFrontmost(context)) return false;
   final saved = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
@@ -71,36 +72,33 @@ class _PinSetupDialogState extends ConsumerState<PinSetupDialog> {
       });
       return;
     }
+    AppHaptics.confirm();
     if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      scrollable: true,
-      backgroundColor: kSurface,
-      title: Text(
-        S.current.setPinTitle,
-        style: TextStyle(color: kTextPrimary, fontSize: 18),
-      ),
+    final s = S.current;
+    return AppDialog(
+      title: s.setPinTitle,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            S.current.setPinDescription,
-            style: TextStyle(color: kTextSecondary, fontSize: 13),
+            s.setPinDescription,
+            style: context.text.bodySmall.tone(context.colors.textSecondary),
           ),
-          const SizedBox(height: 20),
+          Gap.vXl,
           PinField(
             controller: _pinController,
-            label: S.current.enterPin,
+            label: s.enterPin,
             textInputAction: TextInputAction.next,
           ),
-          const SizedBox(height: 12),
+          Gap.vMd,
           PinField(
             controller: _confirmController,
-            label: S.current.confirmPin,
+            label: s.confirmPin,
             errorText: _error,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _save(),
@@ -108,20 +106,8 @@ class _PinSetupDialogState extends ConsumerState<PinSetupDialog> {
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(
-            widget.cancelLabel,
-            style: TextStyle(color: kTextSecondary),
-          ),
-        ),
-        TextButton(
-          onPressed: _saving ? null : _save,
-          child: Text(
-            S.current.savePin,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ),
+        DialogButton.cancel(label: widget.cancelLabel),
+        DialogButton(label: s.savePin, onPressed: _saving ? null : _save),
       ],
     );
   }

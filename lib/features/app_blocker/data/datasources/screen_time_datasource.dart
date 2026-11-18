@@ -1,4 +1,5 @@
 import '../../domain/entities/blocker_profile.dart';
+import 'screen_time_contract.dart';
 
 /// Whether the user has granted Screen Time access.
 enum ScreenTimeAuthStatus { notDetermined, denied, approved }
@@ -144,13 +145,13 @@ class ActivationRequest {
       !hasSchedule && usageLimitMinutes == null && !taskModeEnabled;
 
   Map<String, Object?> toMap() => {
-    'profileId': profileId,
-    'name': name,
-    'scheduleStartMinute': ?scheduleStartMinute,
-    'scheduleEndMinute': ?scheduleEndMinute,
-    'usageLimitMinutes': ?usageLimitMinutes,
-    'taskModeEnabled': taskModeEnabled,
-    'tasksDone': tasksDone,
+    ScreenTimeArg.profileId: profileId,
+    ScreenTimeArg.name: name,
+    ScreenTimeArg.scheduleStartMinute: ?scheduleStartMinute,
+    ScreenTimeArg.scheduleEndMinute: ?scheduleEndMinute,
+    ScreenTimeArg.usageLimitMinutes: ?usageLimitMinutes,
+    ScreenTimeArg.taskModeEnabled: taskModeEnabled,
+    ScreenTimeArg.tasksDone: tasksDone,
   };
 
   @override
@@ -190,8 +191,8 @@ class ActiveProfileState {
   final bool tasksDone;
 
   Map<String, Object?> toMap() => {
-    'profileId': profileId,
-    'tasksDone': tasksDone,
+    ScreenTimeArg.profileId: profileId,
+    ScreenTimeArg.tasksDone: tasksDone,
   };
 }
 
@@ -212,10 +213,10 @@ class AppPickerLabels {
   final String tooMany;
 
   Map<String, Object?> toMap() => {
-    'title': title,
-    'cancel': cancel,
-    'save': save,
-    'tooMany': tooMany,
+    ScreenTimeArg.title: title,
+    ScreenTimeArg.cancel: cancel,
+    ScreenTimeArg.save: save,
+    ScreenTimeArg.tooMany: tooMany,
   };
 }
 
@@ -241,12 +242,12 @@ class ShieldStrings {
   final String websiteFallback;
 
   Map<String, Object?> toMap() => {
-    'titleTemplate': titleTemplate,
-    'subtitleTemplate': subtitleTemplate,
-    'subtitleGeneric': subtitleGeneric,
-    'button': button,
-    'appFallback': appFallback,
-    'websiteFallback': websiteFallback,
+    ScreenTimeArg.titleTemplate: titleTemplate,
+    ScreenTimeArg.subtitleTemplate: subtitleTemplate,
+    ScreenTimeArg.subtitleGeneric: subtitleGeneric,
+    ScreenTimeArg.button: button,
+    ScreenTimeArg.appFallback: appFallback,
+    ScreenTimeArg.websiteFallback: websiteFallback,
   };
 
   @override

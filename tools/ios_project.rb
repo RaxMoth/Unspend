@@ -12,6 +12,7 @@
 #      (Flutter/Extension.xcconfig), so they always match the Runner app.
 #   3. FocusMonitor gets a Resources phase containing its privacy manifest.
 #   4. Swift files under ios/Shared are compiled into the targets that use them.
+#   5. Every Swift file in ios/Runner is a member of the Runner target.
 
 require 'xcodeproj'
 
@@ -112,6 +113,18 @@ if Dir.exist?(shared_dir)
     ref = find_or_add_reference(shared_group, File.basename(file))
     ENFORCER_TARGETS.each { |name| add_to_sources(targets.fetch(name), ref) }
   end
+end
+
+# ── 5. Runner sources ────────────────────────────────────────────────────────
+# A Swift file added to ios/Runner by hand or by a tool is not compiled until
+# it is a member of the target; pick up any that are missing.
+runner = targets.fetch('Runner')
+runner_group = project.main_group.groups.find { |g| g.display_name == 'Runner' }
+raise 'Runner group not found in the Xcode project' unless runner_group
+
+Dir.glob(File.join(IOS_DIR, 'Runner', '*.swift')).sort.each do |file|
+  ref = find_or_add_reference(runner_group, File.basename(file))
+  add_to_sources(runner, ref)
 end
 
 project.save

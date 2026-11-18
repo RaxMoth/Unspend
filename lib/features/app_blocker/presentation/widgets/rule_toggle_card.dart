@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/app_switch.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
 /// One block rule (schedule, usage limit, task mode) with its on/off switch.
 /// The whole card toggles the rule; while [locked] it only shows its state.
@@ -26,12 +25,14 @@ class RuleToggleCard extends StatelessWidget {
   final ValueChanged<bool> onToggle;
 
   void _toggle() {
-    HapticFeedback.selectionClick();
+    AppHaptics.selection();
     onToggle(!enabled);
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final text = context.text;
     return Semantics(
       container: true,
       toggled: enabled,
@@ -40,74 +41,56 @@ class RuleToggleCard extends StatelessWidget {
       excludeSemantics: true,
       onTap: locked ? null : _toggle,
       child: Opacity(
-        opacity: locked ? 0.6 : 1,
-        child: Material(
-          color: enabled ? accent.withValues(alpha: 0.08) : kSurface,
-          borderRadius: BorderRadius.circular(kRadius),
-          child: InkWell(
-            onTap: locked ? null : _toggle,
-            borderRadius: BorderRadius.circular(kRadius),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(kRadius),
-                border: Border.all(
-                  color: enabled ? accent.withValues(alpha: 0.4) : kBorder,
-                ),
+        opacity: locked ? AppOpacity.disabled : 1,
+        child: AppCard(
+          tint: enabled ? accent : null,
+          padding: AppInsets.cardWithTrailingControl,
+          onTap: locked ? null : _toggle,
+          excludeTapFromSemantics: true,
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: enabled ? colors.readable(accent) : colors.textSecondary,
               ),
-              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-              child: Row(
-                children: [
-                  Icon(
-                    icon,
-                    size: 22,
-                    color: enabled ? accent : kTextSecondary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Gap.hMd,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                title,
-                                style: TextStyle(
-                                  color: enabled
-                                      ? kTextPrimary
-                                      : kTextSecondary,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: text.label.tone(
+                              enabled
+                                  ? colors.textPrimary
+                                  : colors.textSecondary,
                             ),
-                            if (locked) ...[
-                              const SizedBox(width: 6),
-                              Icon(
-                                Icons.lock_rounded,
-                                size: 14,
-                                color: kTextSecondary.withValues(alpha: 0.6),
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          description,
-                          style: TextStyle(color: kTextSecondary, fontSize: 12),
-                        ),
+                        if (locked) ...[
+                          Gap.hXs,
+                          const Icon(Icons.lock_rounded, size: AppSizes.iconXs),
+                        ],
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  AppSwitch(
-                    value: enabled,
-                    activeColor: accent,
-                    onChanged: locked ? null : (_) => _toggle(),
-                  ),
-                ],
+                    Gap.vXxs,
+                    Text(
+                      description,
+                      style: text.caption.tone(colors.textSecondary),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              Gap.hXs,
+              AppSwitch(
+                value: enabled,
+                activeColor: accent,
+                onChanged: locked ? null : (_) => _toggle(),
+              ),
+            ],
           ),
         ),
       ),

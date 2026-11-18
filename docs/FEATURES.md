@@ -35,14 +35,17 @@ What ships, what is open, and what is queued. Last updated 2026-11-17.
 **App**
 - Onboarding that ends with the Screen Time permission; a dashboard banner
   when permission is missing.
-- iPhone, portrait and landscape; system text size up to 1.6×.
+- iPhone, portrait and landscape; system text size up to 2×.
+- Follows the system's Increase Contrast and Reduce Motion settings.
 - Light, dark and system theme. English, German, Spanish, French, Croatian.
 - VoiceOver labels, 44 pt tap targets, WCAG AA text contrast.
 - 100 % on-device: no account, no network, no analytics. Delete All Data
   removes everything, including the app selections held by iOS.
 
 **Engineering**
-- 357 Dart tests, 42 Swift tests, one integration test; CI on every push.
+- A design system (`docs/DESIGN_SYSTEM.md`): colour, type, spacing, shape,
+  motion and haptic tokens, and shared components every screen is built from.
+- 443 Dart tests, 42 Swift tests, one integration test; CI on every push.
 - `lib/main_dev.dart` runs the whole app in the Simulator on a fake Screen Time.
 - Debug-only Diagnostics screen (Settings) for what the OS side did.
 
@@ -60,5 +63,3 @@ What ships, what is open, and what is queued. Last updated 2026-11-17.
   be disclosed. Post-launch.
 - **Freemium model** — e.g. one profile free. Product decision.
 - **iPad layout** — the app is iPhone-only.
-- **Colour tokens as a `ThemeExtension`** — today they are global getters kept
-  in sync by `app.dart`; a mechanical refactor with no user-visible change.

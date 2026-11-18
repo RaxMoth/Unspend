@@ -13,10 +13,14 @@ struct AppPickerLabels {
     init() {}
 
     init(_ args: [String: Any]) {
-        if let value = args["title"] as? String, !value.isEmpty { title = value }
-        if let value = args["cancel"] as? String, !value.isEmpty { cancel = value }
-        if let value = args["save"] as? String, !value.isEmpty { save = value }
-        if let value = args["tooMany"] as? String, !value.isEmpty { tooMany = value }
+        func text(_ key: String) -> String? {
+            guard let value = args[key] as? String, !value.isEmpty else { return nil }
+            return value
+        }
+        title = text(ChannelContract.Arg.title) ?? title
+        cancel = text(ChannelContract.Arg.cancel) ?? cancel
+        save = text(ChannelContract.Arg.save) ?? save
+        tooMany = text(ChannelContract.Arg.tooMany) ?? tooMany
     }
 }
 
@@ -25,15 +29,13 @@ struct AppPickerLabels {
 /// `showPicker` answers with the number of selected items, or nil when the
 /// user cancelled. It always answers exactly once.
 final class AppPickerChannel {
-    static let channelName = "com.maxroth.backyourtime/apppicker"
-
     func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
-            name: AppPickerChannel.channelName,
+            name: ChannelContract.appPickerChannel,
             binaryMessenger: registrar.messenger()
         )
         channel.setMethodCallHandler { [weak self] call, result in
-            guard call.method == "showPicker" else {
+            guard call.method == ChannelContract.Method.showPicker.rawValue else {
                 result(FlutterMethodNotImplemented)
                 return
             }
@@ -42,25 +44,23 @@ final class AppPickerChannel {
     }
 
     private func showPicker(_ args: [String: Any], result: @escaping FlutterResult) {
-        guard let profileId = args["profileId"] as? String, !profileId.isEmpty else {
-            result(FlutterError(code: "INVALID_ARGS", message: "Missing profileId", details: nil))
+        guard let profileId = args[ChannelContract.Arg.profileId] as? String, !profileId.isEmpty else {
+            result(ChannelContract.ErrorCode.invalidArgs.error("Missing profileId"))
             return
         }
         guard let shared = SharedStore() else {
-            result(FlutterError(
-                code: "NO_APP_GROUP", message: "The shared App Group is not available", details: nil))
+            result(ChannelContract.ErrorCode.noAppGroup.error("The shared App Group is not available"))
             return
         }
         // Changing the selection of a profile that is blocking right now
         // would be a way around the block.
         guard !shared.activeProfileIds.contains(profileId) else {
-            result(FlutterError(
-                code: "PROFILE_ACTIVE", message: "Deactivate the profile before changing its apps",
-                details: nil))
+            result(ChannelContract.ErrorCode.profileActive.error(
+                "Deactivate the profile before changing its apps"))
             return
         }
         guard let presenter = Self.topViewController() else {
-            result(FlutterError(code: "NO_ROOT_VC", message: "No window to present from", details: nil))
+            result(ChannelContract.ErrorCode.noWindow.error("No window to present from"))
             return
         }
 

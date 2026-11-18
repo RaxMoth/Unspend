@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
+import 'package:unspend/core/theme/theme.dart';
 import 'package:unspend/features/app_blocker/data/datasources/screen_time_datasource.dart';
 import 'package:unspend/features/app_blocker/domain/entities/blocker_profile.dart';
 import 'package:unspend/features/app_blocker/presentation/native_strings.dart';
@@ -145,13 +147,15 @@ void main() {
     expect(app.screenTime.calls, ['sync:chores']);
   });
 
-  testWidgets('system text larger than 1.6× is capped', (tester) async {
+  testWidgets('system text beyond the largest supported size is capped', (
+    tester,
+  ) async {
     await pumpUnspend(tester, textScale: 3);
 
     final scaler = MediaQuery.textScalerOf(
       tester.element(find.byType(Scaffold).first),
     );
-    expect(scaler.scale(10), 16);
+    expect(scaler.scale(10), 10 * AppTextScale.max);
   });
 
   testWidgets('system text between the limits is honoured', (tester) async {
@@ -167,17 +171,82 @@ void main() {
     tester,
   ) async {
     final app = await pumpUnspend(tester, profiles: sampleProfiles());
-    Color background() =>
-        tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor!;
-    expect(background(), const Color(0xFF0D0D0D));
+    AppColors colors() => tester.element(find.text('Games')).colors;
+    Color nameColor() => tester.widget<Text>(find.text('Games')).style!.color!;
+    expect(colors(), AppColors.dark);
+    expect(nameColor(), AppColors.dark.textPrimary);
 
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
     await tester.pumpAndSettle();
 
-    expect(background(), const Color(0xFFF5F5F5));
-    // Every widget repaints, not only the ones that happened to rebuild.
-    final name = tester.widget<Text>(find.text('Games'));
-    expect(name.style!.color, const Color(0xFF1A1A1A));
+    expect(colors(), AppColors.light);
+    expect(nameColor(), AppColors.light.textPrimary);
     expect(app.profiles, hasLength(3));
+  });
+
+  testWidgets('Increase Contrast selects the stronger palette', (tester) async {
+    await pumpUnspend(tester, profiles: sampleProfiles());
+    AppColors colors() => tester.element(find.text('Games')).colors;
+    expect(colors(), AppColors.dark);
+
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(highContrast: true);
+    await tester.pumpAndSettle();
+    expect(colors(), AppColors.darkHighContrast);
+
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    await tester.pumpAndSettle();
+    expect(colors(), AppColors.lightHighContrast);
+  });
+
+  group('with Reduce Motion', () {
+    testWidgets('animations take no time', (tester) async {
+      await pumpUnspend(tester, profiles: sampleProfiles(), reduceMotion: true);
+
+      final context = tester.element(find.text('Games'));
+      expect(context.motion(AppDurations.medium), Duration.zero);
+    });
+
+    testWidgets('the introduction changes pages without sliding', (
+      tester,
+    ) async {
+      final app = await pumpUnspend(
+        tester,
+        onboardingSeen: false,
+        reduceMotion: true,
+      );
+
+      for (var page = 0; page < 4; page++) {
+        await tester.tap(find.text(app.s.next));
+        await tester.pump();
+      }
+
+      expect(find.text(app.s.onboardingTitle4), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('rule settings appear and disappear at once', (tester) async {
+      final app = await pumpUnspend(
+        tester,
+        profiles: sampleProfiles(),
+        reduceMotion: true,
+      );
+      await app.open(AppRoutes.profile('games'));
+      // The rule's card; once it is on, its settings carry the title too.
+      final schedule = find
+          .bySemanticsLabel(RegExp('^${app.s.scheduleTitle}'))
+          .first;
+
+      await tester.ensureVisible(schedule);
+      await tester.pump();
+      await tester.tap(schedule);
+      await tester.pump();
+      expect(find.text(app.s.scheduleStart), findsOneWidget);
+
+      await tester.tap(schedule);
+      await tester.pump();
+      expect(find.text(app.s.scheduleStart), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

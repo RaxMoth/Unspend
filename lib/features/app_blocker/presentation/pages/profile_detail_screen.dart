@@ -1,13 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/content_width.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 import 'package:unspend/shared/providers/locale_provider.dart';
 
 import '../../domain/entities/blocker_profile.dart';
@@ -17,9 +16,9 @@ import '../providers/current_minute_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../widgets/app_selection_card.dart';
 import '../widgets/appearance_pickers.dart';
+import '../widgets/locked_section.dart';
 import '../widgets/rule_toggle_card.dart';
 import '../widgets/schedule_card.dart';
-import '../widgets/section_widgets.dart';
 import '../widgets/task_list_section.dart';
 import '../widgets/usage_limit_sheet.dart';
 
@@ -64,20 +63,16 @@ class _ProfileDetailPageShellState
         ),
       ),
     );
-    final placeholder = Scaffold(backgroundColor: kBg);
     return profile.when(
-      loading: () => Scaffold(
-        backgroundColor: kBg,
-        body: const Center(child: CircularProgressIndicator(color: kAccent)),
-      ),
+      loading: () => const Scaffold(body: AppLoader()),
       error: (_, _) {
         _leave();
-        return placeholder;
+        return const Scaffold();
       },
       data: (profile) {
         if (profile == null) {
           _leave();
-          return placeholder;
+          return const Scaffold();
         }
         return ProfileDetailScreen(profile: profile);
       },
@@ -143,14 +138,16 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
     _usageLimitEnabled = profile.usageLimitEnabled;
     _taskModeEnabled = profile.taskModeEnabled;
     _startTime = TimeOfDay(
-      hour: profile.scheduleStartHour ?? 9,
+      hour:
+          profile.scheduleStartHour ?? BlockerProfile.defaultScheduleStartHour,
       minute: profile.scheduleStartMinute ?? 0,
     );
     _endTime = TimeOfDay(
-      hour: profile.scheduleEndHour ?? 17,
+      hour: profile.scheduleEndHour ?? BlockerProfile.defaultScheduleEndHour,
       minute: profile.scheduleEndMinute ?? 0,
     );
-    _usageLimitMinutes = profile.usageLimitMinutes ?? 30;
+    _usageLimitMinutes =
+        profile.usageLimitMinutes ?? BlockerProfile.defaultUsageLimitMinutes;
     _colorValue = profile.colorValue;
     _iconLabel = profile.iconLabel;
   }
@@ -181,7 +178,7 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
   /// For text input: save once typing pauses.
   void _saveSoon() {
     _pendingSave?.cancel();
-    _pendingSave = Timer(const Duration(milliseconds: 500), _save);
+    _pendingSave = Timer(AppDurations.typingDebounce, _save);
   }
 
   void _change(VoidCallback change) {
@@ -200,43 +197,26 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
   }
 
   Future<void> _activate() async {
+    if (_activating) return;
     setState(() => _activating = true);
-    // The rules on screen are the rules that get enforced.
-    await _save();
-    if (mounted) await activateWithFeedback(context, ref, widget.profile);
-    if (mounted) setState(() => _activating = false);
+    try {
+      // The rules on screen are the rules that get enforced.
+      await _save();
+      if (mounted) await activateWithFeedback(context, ref, widget.profile);
+    } finally {
+      if (mounted) setState(() => _activating = false);
+    }
   }
 
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        scrollable: true,
-        backgroundColor: kSurface,
-        title: Text(
-          S.current.deleteProfile,
-          style: TextStyle(color: kTextPrimary, fontSize: 18),
-        ),
-        content: Text(
-          S.current.deleteProfileConfirm(widget.profile.name),
-          style: TextStyle(color: kTextSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(
-              S.current.cancel,
-              style: TextStyle(color: kTextSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(S.current.delete),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: S.current.deleteProfile,
+      message: S.current.deleteProfileConfirm(widget.profile.name),
+      confirmLabel: S.current.delete,
+      destructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     _pendingSave?.cancel();
     // The page shell leaves the route once the profile is gone.
     await _notifier.deleteProfile(widget.profile.id);
@@ -246,35 +226,41 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
   Widget build(BuildContext context) {
     ref.watch(localeProvider);
     final s = S.current;
+    final colors = context.colors;
+    final text = context.text;
     final profile = widget.profile;
     final accent = Color(_colorValue);
     final locked = profile.isActive;
 
     return Scaffold(
-      backgroundColor: kBg,
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xs,
+                AppSpacing.xs,
+                AppSpacing.xs,
+                0,
+              ),
               child: Row(
                 children: [
                   IconButton(
                     tooltip: MaterialLocalizations.of(
                       context,
                     ).backButtonTooltip,
-                    icon: Icon(Icons.arrow_back_rounded, color: kTextPrimary),
+                    icon: Icon(
+                      Icons.arrow_back_rounded,
+                      color: colors.textPrimary,
+                    ),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                   const Spacer(),
                   if (!locked)
                     IconButton(
                       tooltip: s.deleteProfile,
-                      icon: Icon(
-                        Icons.delete_outline_rounded,
-                        color: kTextSecondary,
-                      ),
-                      onPressed: _confirmDelete,
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      onPressed: () => runGuarded(context, _confirmDelete),
                     ),
                 ],
               ),
@@ -284,39 +270,36 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                 builder: (context, gutter) => SingleChildScrollView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 32),
+                  padding: EdgeInsets.fromLTRB(
+                    gutter,
+                    AppSpacing.sm,
+                    gutter,
+                    AppSpacing.xxxl,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // ── Name ───────────────────────────────────────────
                       Center(
                         child: ExcludeSemantics(
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: accent.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Icon(
-                              ProfileIcon.fromLabel(_iconLabel).icon,
-                              size: 40,
-                              color: accent,
+                          child: IconBadge(
+                            icon: ProfileIcon.fromLabel(_iconLabel).icon,
+                            size: IconBadge.hero,
+                            color: colors.readable(accent),
+                            background: accent.withValues(
+                              alpha: AppOpacity.tint,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      Gap.vSm,
                       TextField(
                         controller: _nameController,
                         textAlign: TextAlign.center,
-                        maxLength: 40,
+                        maxLength: BlockerProfile.maxNameLength,
                         textCapitalization: TextCapitalization.words,
                         textInputAction: TextInputAction.done,
-                        style: TextStyle(
-                          color: kTextPrimary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: text.screenTitle,
                         decoration: InputDecoration(
                           filled: false,
                           border: InputBorder.none,
@@ -324,68 +307,75 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                           focusedBorder: InputBorder.none,
                           counterText: '',
                           hintText: s.profileNamePlaceholder,
-                          hintStyle: TextStyle(color: kTextSecondary),
+                          hintStyle: text.screenTitle.tone(
+                            colors.textSecondary,
+                          ),
                         ),
                         onChanged: (_) => _saveSoon(),
                         onSubmitted: (_) => _save(),
                       ),
-                      if (locked) ...[
-                        _BlockingStatus(profile: profile),
-                        const SizedBox(height: 8),
-                      ],
-                      const SizedBox(height: 8),
+                      Reveal(
+                        visible: locked,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: _BlockingStatus(profile: profile),
+                        ),
+                      ),
+                      Gap.vSm,
 
                       // ── Appearance ─────────────────────────────────────
                       SectionLabel(s.sectionColor),
-                      const SizedBox(height: 4),
+                      Gap.vXs,
                       ProfileColorPicker(
                         selectedValue: _colorValue,
                         onSelected: (value) =>
                             _change(() => _colorValue = value),
                       ),
-                      const SizedBox(height: 16),
+                      Gap.vLg,
                       SectionLabel(s.sectionIcon),
-                      const SizedBox(height: 6),
+                      Gap.vSm,
                       ProfileIconPicker(
                         selectedLabel: _iconLabel,
                         accent: accent,
                         onSelected: (label) =>
                             _change(() => _iconLabel = label),
                       ),
-                      const SizedBox(height: 24),
+                      Gap.vXxl,
 
                       // ── Apps ───────────────────────────────────────────
                       SectionLabel(s.sectionApps),
-                      const SizedBox(height: 8),
+                      Gap.vSm,
                       LockedSection(
                         locked: locked,
                         child: AppSelectionCard(
                           profile: profile,
                           accent: accent,
                           onTap: () {
-                            HapticFeedback.selectionClick();
+                            AppHaptics.selection();
                             pickAppsWithFeedback(context, ref, profile);
                           },
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      Gap.vXxl,
 
                       // ── Rules ──────────────────────────────────────────
                       SectionLabel(s.sectionBlockRules),
-                      const SizedBox(height: 4),
+                      Gap.vXs,
                       Text(
                         locked
                             ? s.settingsLockedWhileActive
                             : s.blockRulesDescription,
-                        style: TextStyle(
-                          color: locked ? kAccentText : kTextSecondary,
-                          fontSize: 12,
-                          fontStyle: locked
-                              ? FontStyle.italic
-                              : FontStyle.normal,
-                        ),
+                        style: text.caption
+                            .tone(
+                              locked ? colors.accentText : colors.textSecondary,
+                            )
+                            .copyWith(
+                              fontStyle: locked
+                                  ? FontStyle.italic
+                                  : FontStyle.normal,
+                            ),
                       ),
-                      const SizedBox(height: 12),
+                      Gap.vMd,
 
                       RuleToggleCard(
                         icon: Icons.calendar_today_rounded,
@@ -396,22 +386,25 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                         locked: locked,
                         onToggle: (on) => _change(() => _scheduleEnabled = on),
                       ),
-                      if (_scheduleEnabled) ...[
-                        const SizedBox(height: 8),
-                        LockedSection(
-                          locked: locked,
-                          child: ScheduleCard(
-                            start: _startTime,
-                            end: _endTime,
-                            accent: accent,
-                            onStartChanged: (time) =>
-                                _change(() => _startTime = time),
-                            onEndChanged: (time) =>
-                                _change(() => _endTime = time),
+                      Reveal(
+                        visible: _scheduleEnabled,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.sm),
+                          child: LockedSection(
+                            locked: locked,
+                            child: ScheduleCard(
+                              start: _startTime,
+                              end: _endTime,
+                              accent: accent,
+                              onStartChanged: (time) =>
+                                  _change(() => _startTime = time),
+                              onEndChanged: (time) =>
+                                  _change(() => _endTime = time),
+                            ),
                           ),
                         ),
-                      ],
-                      const SizedBox(height: 12),
+                      ),
+                      Gap.vMd,
 
                       RuleToggleCard(
                         icon: Icons.timer_rounded,
@@ -423,18 +416,21 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                         onToggle: (on) =>
                             _change(() => _usageLimitEnabled = on),
                       ),
-                      if (_usageLimitEnabled) ...[
-                        const SizedBox(height: 8),
-                        LockedSection(
-                          locked: locked,
-                          child: UsageLimitCard(
-                            minutes: _usageLimitMinutes,
-                            accent: accent,
-                            onTap: () => _pickUsageLimit(accent),
+                      Reveal(
+                        visible: _usageLimitEnabled,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.sm),
+                          child: LockedSection(
+                            locked: locked,
+                            child: UsageLimitCard(
+                              minutes: _usageLimitMinutes,
+                              accent: accent,
+                              onTap: () => _pickUsageLimit(accent),
+                            ),
                           ),
                         ),
-                      ],
-                      const SizedBox(height: 12),
+                      ),
+                      Gap.vMd,
 
                       RuleToggleCard(
                         icon: Icons.checklist_rounded,
@@ -445,28 +441,41 @@ class _ProfileDetailScreenState extends ConsumerState<ProfileDetailScreen> {
                         locked: locked,
                         onToggle: (on) => _change(() => _taskModeEnabled = on),
                       ),
-                      if (_taskModeEnabled) ...[
-                        const SizedBox(height: 8),
-                        TaskListSection(profile: profile, accent: accent),
-                      ],
-                      const SizedBox(height: 24),
+                      Reveal(
+                        visible: _taskModeEnabled,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.sm),
+                          child: TaskListSection(
+                            profile: profile,
+                            accent: accent,
+                          ),
+                        ),
+                      ),
+                      Gap.vXxl,
 
                       // ── Activate / deactivate ──────────────────────────
                       if (locked)
-                        FullWidthButton(
+                        AppButton.secondary(
                           label: s.deactivateShield,
                           icon: Icons.shield_outlined,
-                          color: kTextSecondary,
-                          bgColor: kSurface,
-                          borderColor: kBorder,
                           onPressed: () =>
                               deactivateWithGate(context, ref, profile.id),
                         )
+                      else if (profile.hasAppsSelected)
+                        AppButton.primary(
+                          label: s.activateShield,
+                          icon: Icons.shield_rounded,
+                          color: accent,
+                          loading: _activating,
+                          onPressed: _activate,
+                        )
                       else
-                        _ActivateButton(
-                          accent: accent,
-                          hasApps: profile.hasAppsSelected,
-                          busy: _activating,
+                        // Stays tappable: tapping it explains what is
+                        // missing instead of leaving the user guessing.
+                        AppButton.secondary(
+                          label: s.selectAppsToActivate,
+                          icon: Icons.apps_rounded,
+                          loading: _activating,
                           onPressed: _activate,
                         ),
                     ],
@@ -490,6 +499,7 @@ class _BlockingStatus extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
     final now = ref.watch(currentMinuteProvider);
     final limitReached = ref.watch(
       shieldStatusProvider.select(
@@ -497,17 +507,17 @@ class _BlockingStatus extends ConsumerWidget {
       ),
     );
     final blocking = profile.isBlockingAt(now, limitReachedToday: limitReached);
-    final color = kReadable(blocking ? profile.color : kSuccess);
+    final color = colors.readable(blocking ? profile.color : colors.success);
     return MergeSemantics(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             blocking ? Icons.lock_rounded : Icons.lock_open_rounded,
-            size: 16,
+            size: AppSizes.iconSm,
             color: color,
           ),
-          const SizedBox(width: 6),
+          Gap.hSm,
           Flexible(
             child: Text(
               profile.requirementReason(
@@ -516,46 +526,11 @@ class _BlockingStatus extends ConsumerWidget {
                 limitReachedToday: limitReached,
               ),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: context.text.bodySmall.strong.tone(color),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ActivateButton extends StatelessWidget {
-  const _ActivateButton({
-    required this.accent,
-    required this.hasApps,
-    required this.busy,
-    required this.onPressed,
-  });
-
-  final Color accent;
-  final bool hasApps;
-  final bool busy;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    // Without apps the button stays tappable: tapping it explains what is
-    // missing instead of leaving the user guessing.
-    final filled = kFilled(accent);
-    return FullWidthButton(
-      label: hasApps
-          ? S.current.activateShield
-          : S.current.selectAppsToActivate,
-      icon: hasApps ? Icons.shield_rounded : Icons.apps_rounded,
-      color: hasApps ? filled.onFill : kTextSecondary,
-      bgColor: hasApps ? filled.fill : kSurface,
-      borderColor: hasApps ? null : kBorder,
-      onPressed: busy ? null : onPressed,
     );
   }
 }

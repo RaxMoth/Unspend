@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unspend/core/providers.dart';
+import 'package:unspend/core/storage_keys.dart';
 import 'package:unspend/features/app_blocker/data/datasources/fake_screen_time_datasource.dart';
 import 'package:unspend/features/app_blocker/data/datasources/method_channel_screen_time_datasource.dart';
 import 'package:unspend/features/app_blocker/data/datasources/screen_time_datasource.dart';
@@ -47,10 +48,9 @@ void main() {
     bool waitForLoad = true,
   }) async {
     SharedPreferences.setMockInitialValues({
-      ProfilesRepository.schemaVersionKey:
-          ProfilesRepository.currentSchemaVersion,
+      PrefKeys.profilesSchemaVersion: ProfilesRepository.currentSchemaVersion,
       if (stored.isNotEmpty)
-        ProfilesRepository.profilesKey: jsonEncode([
+        PrefKeys.profiles: jsonEncode([
           for (final profile in stored) profile.toJson(),
         ]),
     });
@@ -76,8 +76,7 @@ void main() {
   ShieldStatus? status(String id) => container.read(shieldStatusProvider)[id];
 
   List<BlockerProfile> persisted() => [
-    for (final json
-        in jsonDecode(prefs.getString(ProfilesRepository.profilesKey)!) as List)
+    for (final json in jsonDecode(prefs.getString(PrefKeys.profiles)!) as List)
       BlockerProfile.fromJson(json as Map<String, dynamic>),
   ];
 
@@ -1009,7 +1008,7 @@ void main() {
 
       expect(screenTime.removalLocked, isFalse);
       expect(container.read(uninstallProtectionProvider), isFalse);
-      expect(prefs.getBool(UninstallProtectionNotifier.storageKey), isFalse);
+      expect(prefs.getBool(PrefKeys.uninstallProtection), isFalse);
     });
 
     test('the setting only changes when the OS accepted it', () async {
@@ -1042,7 +1041,7 @@ void main() {
       final id = await ready(notifier);
       await notifier.activateProfile(id);
       await container.read(pinRepositoryProvider).setPin('2468');
-      await prefs.setBool(kHasSeenOnboardingKey, true);
+      await prefs.setBool(PrefKeys.onboardingSeen, true);
 
       await notifier.deleteAllData();
 

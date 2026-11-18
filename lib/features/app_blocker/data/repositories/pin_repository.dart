@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unspend/core/providers.dart';
 import 'package:unspend/core/security/pin_hasher.dart';
+import 'package:unspend/core/storage_keys.dart';
 
 final pinRepositoryProvider = Provider<PinRepository>(
   (ref) => PinRepository(
@@ -51,11 +52,6 @@ class PinRepository {
   final SharedPreferences _prefs;
   final DateTime Function() _clock;
 
-  static const hashKey = 'blocker_pin_hash';
-  static const saltKey = 'blocker_pin_salt';
-  static const failedAttemptsKey = 'blocker_pin_failed_attempts';
-  static const lockoutUntilKey = 'blocker_pin_lockout_until';
-
   static const minPinLength = 4;
 
   /// Every [attemptsPerLockout]th wrong attempt in a row locks the PIN for
@@ -65,21 +61,24 @@ class PinRepository {
 
   Future<bool> hasPin() async {
     await _migrateLegacyPin();
-    return await _storage.read(key: hashKey) != null;
+    return await _storage.read(key: SecureKeys.pinHash) != null;
   }
 
   /// Replaces the PIN and clears any lockout. Callers must have verified the
   /// current PIN first (see `showPinGate`).
   Future<void> setPin(String pin) async {
     final salt = PinHasher.generateSalt();
-    await _storage.write(key: saltKey, value: salt);
-    await _storage.write(key: hashKey, value: PinHasher.hash(salt, pin));
+    await _storage.write(key: SecureKeys.pinSalt, value: salt);
+    await _storage.write(
+      key: SecureKeys.pinHash,
+      value: PinHasher.hash(salt, pin),
+    );
     await _resetAttempts();
   }
 
   /// Time left on the current lockout, or null when the PIN can be tried.
   Future<Duration?> lockoutRemaining() async {
-    final raw = await _storage.read(key: lockoutUntilKey);
+    final raw = await _storage.read(key: SecureKeys.pinLockoutUntil);
     final until = raw == null ? null : DateTime.tryParse(raw);
     if (until == null) return null;
     final remaining = until.difference(_clock());
@@ -92,8 +91,8 @@ class PinRepository {
     final locked = await lockoutRemaining();
     if (locked != null) return PinLockedOut(locked);
 
-    final salt = await _storage.read(key: saltKey);
-    final storedHash = await _storage.read(key: hashKey);
+    final salt = await _storage.read(key: SecureKeys.pinSalt);
+    final storedHash = await _storage.read(key: SecureKeys.pinHash);
     if (salt != null &&
         storedHash != null &&
         PinHasher.hash(salt, pin) == storedHash) {
@@ -102,12 +101,12 @@ class PinRepository {
     }
 
     final failed = await _failedAttempts() + 1;
-    await _storage.write(key: failedAttemptsKey, value: '$failed');
+    await _storage.write(key: SecureKeys.pinFailedAttempts, value: '$failed');
     if (failed % attemptsPerLockout != 0) return const PinWrong();
 
     final lockout = lockoutStep * (failed ~/ attemptsPerLockout);
     await _storage.write(
-      key: lockoutUntilKey,
+      key: SecureKeys.pinLockoutUntil,
       value: _clock().add(lockout).toIso8601String(),
     );
     return PinLockedOut(lockout);
@@ -115,31 +114,39 @@ class PinRepository {
 
   /// Removes the PIN and the attempt counter.
   Future<void> clear() async {
-    for (final key in [hashKey, saltKey, failedAttemptsKey, lockoutUntilKey]) {
+    for (final key in [
+      SecureKeys.pinHash,
+      SecureKeys.pinSalt,
+      SecureKeys.pinFailedAttempts,
+      SecureKeys.pinLockoutUntil,
+    ]) {
       await _storage.delete(key: key);
     }
   }
 
   Future<int> _failedAttempts() async =>
-      int.tryParse(await _storage.read(key: failedAttemptsKey) ?? '') ?? 0;
+      int.tryParse(
+        await _storage.read(key: SecureKeys.pinFailedAttempts) ?? '',
+      ) ??
+      0;
 
   Future<void> _resetAttempts() async {
-    await _storage.delete(key: failedAttemptsKey);
-    await _storage.delete(key: lockoutUntilKey);
+    await _storage.delete(key: SecureKeys.pinFailedAttempts);
+    await _storage.delete(key: SecureKeys.pinLockoutUntil);
   }
 
   /// Early builds kept the PIN hash in SharedPreferences. Move it to the
   /// Keychain once and delete the insecure copy.
   Future<void> _migrateLegacyPin() async {
-    final legacySalt = _prefs.getString(saltKey);
-    final legacyHash = _prefs.getString(hashKey);
+    final legacySalt = _prefs.getString(SecureKeys.pinSalt);
+    final legacyHash = _prefs.getString(SecureKeys.pinHash);
     if (legacySalt == null || legacyHash == null) return;
 
-    if (await _storage.read(key: hashKey) == null) {
-      await _storage.write(key: saltKey, value: legacySalt);
-      await _storage.write(key: hashKey, value: legacyHash);
+    if (await _storage.read(key: SecureKeys.pinHash) == null) {
+      await _storage.write(key: SecureKeys.pinSalt, value: legacySalt);
+      await _storage.write(key: SecureKeys.pinHash, value: legacyHash);
     }
-    await _prefs.remove(saltKey);
-    await _prefs.remove(hashKey);
+    await _prefs.remove(SecureKeys.pinSalt);
+    await _prefs.remove(SecureKeys.pinHash);
   }
 }

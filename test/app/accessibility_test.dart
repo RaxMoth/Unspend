@@ -15,12 +15,20 @@ void main() {
     await expectLater(tester, meetsGuideline(textContrastGuideline));
   }
 
-  for (final brightness in Brightness.values) {
-    group('${brightness.name} theme', () {
+  // The four themes: light and dark, each also for Increase Contrast.
+  for (final (brightness, highContrast) in [
+    for (final brightness in Brightness.values)
+      for (final highContrast in [false, true]) (brightness, highContrast),
+  ]) {
+    final themeName = highContrast
+        ? '${brightness.name} theme, increased contrast'
+        : '${brightness.name} theme';
+    group(themeName, () {
       testWidgets('onboarding', (tester) async {
         final app = await pumpUnspend(
           tester,
           brightness: brightness,
+          highContrast: highContrast,
           onboardingSeen: false,
           auth: ScreenTimeAuthStatus.notDetermined,
         );
@@ -42,6 +50,7 @@ void main() {
         await pumpUnspend(
           tester,
           brightness: brightness,
+          highContrast: highContrast,
           profiles: sampleProfiles(),
           auth: ScreenTimeAuthStatus.denied,
         );
@@ -49,19 +58,31 @@ void main() {
       });
 
       testWidgets('empty dashboard', (tester) async {
-        await pumpUnspend(tester, brightness: brightness);
+        await pumpUnspend(
+          tester,
+          brightness: brightness,
+          highContrast: highContrast,
+        );
         await expectAccessible(tester);
       });
 
       testWidgets('new profile sheet', (tester) async {
-        final app = await pumpUnspend(tester, brightness: brightness);
+        final app = await pumpUnspend(
+          tester,
+          brightness: brightness,
+          highContrast: highContrast,
+        );
         await tester.tap(find.byTooltip(app.s.newProfile));
         await tester.pumpAndSettle();
         await expectAccessible(tester);
       });
 
       testWidgets('settings', (tester) async {
-        final app = await pumpUnspend(tester, brightness: brightness);
+        final app = await pumpUnspend(
+          tester,
+          brightness: brightness,
+          highContrast: highContrast,
+        );
         await tester.tap(find.byTooltip(app.s.settings));
         await tester.pumpAndSettle();
         await expectAccessible(tester);
@@ -71,6 +92,7 @@ void main() {
         final app = await pumpUnspend(
           tester,
           brightness: brightness,
+          highContrast: highContrast,
           profiles: sampleProfiles(),
         );
         await app.open(AppRoutes.profile('games'));
@@ -88,6 +110,7 @@ void main() {
         final app = await pumpUnspend(
           tester,
           brightness: brightness,
+          highContrast: highContrast,
           profiles: sampleProfiles(),
         );
         await app.open(AppRoutes.profile('social'));
@@ -98,6 +121,7 @@ void main() {
         final app = await pumpUnspend(
           tester,
           brightness: brightness,
+          highContrast: highContrast,
           profiles: sampleProfiles(),
           pin: '2468',
         );
@@ -114,7 +138,11 @@ void main() {
       });
 
       testWidgets('PIN setup dialog', (tester) async {
-        final app = await pumpUnspend(tester, brightness: brightness);
+        final app = await pumpUnspend(
+          tester,
+          brightness: brightness,
+          highContrast: highContrast,
+        );
         await tester.tap(find.byTooltip(app.s.settings));
         await tester.pumpAndSettle();
         await app.tap(find.text(app.s.changePin));

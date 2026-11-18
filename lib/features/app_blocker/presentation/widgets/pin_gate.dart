@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/providers.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/pin_field.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
 import '../../data/repositories/pin_repository.dart';
 
@@ -28,6 +28,8 @@ Future<bool> showPinGate(
   required PinGatePurpose purpose,
   required bool withCooldown,
 }) async {
+  // A second tap while the gate is opening must not stack another one.
+  if (!isFrontmost(context)) return false;
   final passed = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
@@ -36,7 +38,7 @@ Future<bool> showPinGate(
   return passed ?? false;
 }
 
-enum _Step { cooldown, loading, pin, confirm }
+enum _Step { cooldown, loading, pin, confirm, failed }
 
 class PinGateDialog extends ConsumerStatefulWidget {
   const PinGateDialog({
@@ -53,6 +55,8 @@ class PinGateDialog extends ConsumerStatefulWidget {
 }
 
 class _PinGateDialogState extends ConsumerState<PinGateDialog> {
+  static const _tick = Duration(seconds: 1);
+
   final _pinController = TextEditingController();
   Timer? _timer;
 
@@ -74,7 +78,7 @@ class _PinGateDialogState extends ConsumerState<PinGateDialog> {
     _remainingSeconds = _cooldownSeconds;
     if (_cooldownSeconds > 0) {
       _step = _Step.cooldown;
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+      _timer = Timer.periodic(_tick, (_) => _onTick());
     } else {
       _afterCooldown();
     }
@@ -87,7 +91,7 @@ class _PinGateDialogState extends ConsumerState<PinGateDialog> {
     super.dispose();
   }
 
-  void _tick() {
+  void _onTick() {
     if (!mounted) return;
     setState(() => _remainingSeconds--);
     if (_remainingSeconds <= 0) {
@@ -100,7 +104,17 @@ class _PinGateDialogState extends ConsumerState<PinGateDialog> {
     if (mounted && _step != _Step.loading) {
       setState(() => _step = _Step.loading);
     }
-    final hasPin = await _pins.hasPin();
+    final bool hasPin;
+    final Duration? lockout;
+    try {
+      hasPin = await _pins.hasPin();
+      lockout = hasPin ? await _pins.lockoutRemaining() : null;
+    } catch (e) {
+      // The Keychain could not be read. Never treat that as "no PIN".
+      debugPrint('[PinGate] Reading the PIN failed: $e');
+      if (mounted) setState(() => _step = _Step.failed);
+      return;
+    }
     if (!mounted) return;
     if (!hasPin) {
       // Nothing to check. Deactivating still asks once; the other actions
@@ -112,16 +126,15 @@ class _PinGateDialogState extends ConsumerState<PinGateDialog> {
       }
       return;
     }
-    final lockout = await _pins.lockoutRemaining();
-    if (!mounted) return;
     setState(() {
       _step = _Step.pin;
       _pinError = lockout == null ? null : _lockoutMessage(lockout);
     });
   }
 
-  String _lockoutMessage(Duration remaining) =>
-      S.current.pinLockedOut((remaining.inMilliseconds / 1000).ceil());
+  String _lockoutMessage(Duration remaining) => S.current.pinLockedOut(
+    (remaining.inMilliseconds / Duration.millisecondsPerSecond).ceil(),
+  );
 
   Future<void> _checkPin() async {
     if (_checking) return;
@@ -131,24 +144,37 @@ class _PinGateDialogState extends ConsumerState<PinGateDialog> {
       return;
     }
     setState(() => _checking = true);
-    final result = await _pins.verify(pin);
+    final PinCheck result;
+    try {
+      result = await _pins.verify(pin);
+    } catch (e) {
+      debugPrint('[PinGate] Checking the PIN failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _checking = false;
+        _pinError = S.current.errorTryAgain;
+      });
+      return;
+    }
     if (!mounted) return;
     switch (result) {
       case PinCorrect():
+        AppHaptics.confirm();
         Navigator.of(context).pop(true);
       case PinWrong():
-        _pinController.clear();
-        setState(() {
-          _checking = false;
-          _pinError = S.current.incorrectPin;
-        });
+        _rejectPin(S.current.incorrectPin);
       case PinLockedOut(:final remaining):
-        _pinController.clear();
-        setState(() {
-          _checking = false;
-          _pinError = _lockoutMessage(remaining);
-        });
+        _rejectPin(_lockoutMessage(remaining));
     }
+  }
+
+  void _rejectPin(String message) {
+    AppHaptics.reject();
+    _pinController.clear();
+    setState(() {
+      _checking = false;
+      _pinError = message;
+    });
   }
 
   String get _title => switch ((_step, widget.purpose)) {
@@ -163,34 +189,29 @@ class _PinGateDialogState extends ConsumerState<PinGateDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      scrollable: true,
-      backgroundColor: kSurface,
-      title: Text(_title, style: TextStyle(color: kTextPrimary, fontSize: 18)),
+    final s = S.current;
+    final proceedLabel = _isDeactivation ? s.deactivateAction : s.continueLabel;
+    return AppDialog(
+      title: _title,
       content: switch (_step) {
         _Step.cooldown => _Countdown(
           remainingSeconds: _remainingSeconds,
           totalSeconds: _cooldownSeconds,
-          message: _isDeactivation
-              ? S.current.cooldownDescription
-              : S.current.cooldownGeneric,
+          message: _isDeactivation ? s.cooldownDescription : s.cooldownGeneric,
         ),
-        _Step.loading => const Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
-          child: Center(child: CircularProgressIndicator(color: kAccent)),
-        ),
+        _Step.loading => const AppLoader(),
         _Step.pin => Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              S.current.enterTrustedPersonPin,
-              style: TextStyle(color: kTextSecondary, fontSize: 13),
+              s.enterTrustedPersonPin,
+              style: context.text.bodySmall.tone(context.colors.textSecondary),
             ),
-            const SizedBox(height: 16),
+            Gap.vLg,
             PinField(
               controller: _pinController,
-              label: S.current.pinLabel,
+              label: s.pinLabel,
               errorText: _pinError,
               autofocus: true,
               textInputAction: TextInputAction.done,
@@ -198,33 +219,26 @@ class _PinGateDialogState extends ConsumerState<PinGateDialog> {
             ),
           ],
         ),
-        _Step.confirm => Text(
-          S.current.areYouSureDeactivate,
-          style: TextStyle(color: kTextSecondary, fontSize: 14),
-        ),
+        _Step.confirm => Text(s.areYouSureDeactivate),
+        _Step.failed => Text(s.errorTryAgain),
       },
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(
-            S.current.cancel,
-            style: TextStyle(color: kTextSecondary),
+        DialogButton.cancel(label: s.cancel),
+        switch (_step) {
+          _Step.pin => DialogButton(
+            label: proceedLabel,
+            onPressed: _checking ? null : _checkPin,
           ),
-        ),
-        if (_step == _Step.pin || _step == _Step.confirm)
-          TextButton(
-            onPressed: _checking
-                ? null
-                : _step == _Step.pin
-                ? _checkPin
-                : () => Navigator.of(context).pop(true),
-            child: Text(
-              _isDeactivation
-                  ? S.current.deactivateAction
-                  : S.current.continueLabel,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+          _Step.confirm => DialogButton(
+            label: proceedLabel,
+            onPressed: () => Navigator.of(context).pop(true),
           ),
+          _Step.failed => DialogButton(
+            label: s.retry,
+            onPressed: _afterCooldown,
+          ),
+          _Step.cooldown || _Step.loading => const SizedBox.shrink(),
+        },
       ],
     );
   }
@@ -243,40 +257,35 @@ class _Countdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final text = context.text;
     final seconds = remainingSeconds.clamp(0, totalSeconds);
-    final minutesText = (seconds ~/ 60).toString().padLeft(2, '0');
-    final secondsText = (seconds % 60).toString().padLeft(2, '0');
+    final minutesText = (seconds ~/ Duration.secondsPerMinute)
+        .toString()
+        .padLeft(2, '0');
+    final secondsText = (seconds % Duration.secondsPerMinute)
+        .toString()
+        .padLeft(2, '0');
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 8),
+        Gap.vSm,
         FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
             '$minutesText:$secondsText',
-            style: const TextStyle(
-              color: kAccent,
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
+            style: text.display.tone(colors.accent),
           ),
         ),
-        const SizedBox(height: 12),
+        Gap.vMd,
         Text(
           message,
           textAlign: TextAlign.center,
-          style: TextStyle(color: kTextSecondary, fontSize: 13),
+          style: text.bodySmall.tone(colors.textSecondary),
         ),
-        const SizedBox(height: 16),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: totalSeconds == 0 ? 1 : 1 - seconds / totalSeconds,
-            backgroundColor: kBg,
-            valueColor: const AlwaysStoppedAnimation(kAccent),
-            minHeight: 4,
-          ),
+        Gap.vLg,
+        AppProgressBar(
+          value: totalSeconds == 0 ? 1 : 1 - seconds / totalSeconds,
         ),
       ],
     );

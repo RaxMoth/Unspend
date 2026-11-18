@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/content_width.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 import 'package:unspend/shared/providers/locale_provider.dart';
 
 import '../../domain/entities/blocker_profile.dart';
@@ -26,19 +26,25 @@ class DashboardBody extends ConsumerWidget {
     // Strings are read from a global; rebuild when the language changes.
     ref.watch(localeProvider);
     final s = S.current;
+    final colors = context.colors;
+    final text = context.text;
     final activeCount = profiles.where((p) => p.isActive).length;
 
     return ContentGutter(
       builder: (context, gutter) => CustomScrollView(
         slivers: [
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 0),
+            padding: EdgeInsets.fromLTRB(gutter, AppSpacing.sm, gutter, 0),
             sliver: SliverList.list(
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.shield_rounded, color: kAccent, size: 28),
-                    const SizedBox(width: 10),
+                    Icon(
+                      Icons.shield_rounded,
+                      color: colors.accent,
+                      size: AppSizes.iconXl,
+                    ),
+                    Gap.hSm,
                     Expanded(
                       child: Semantics(
                         header: true,
@@ -46,32 +52,24 @@ class DashboardBody extends ConsumerWidget {
                           s.appName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: kTextPrimary,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: text.screenTitle,
                         ),
                       ),
                     ),
                     IconButton(
                       tooltip: s.settings,
                       onPressed: () => showSettingsSheet(context),
-                      icon: Icon(
-                        Icons.settings_rounded,
-                        color: kTextSecondary,
-                        size: 24,
-                      ),
+                      icon: const Icon(Icons.settings_rounded),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                Gap.vMd,
                 const AuthorizationBanner(),
                 SummaryCard(
                   totalProfiles: profiles.length,
                   activeCount: activeCount,
                 ),
-                const SizedBox(height: 20),
+                Gap.vXl,
                 Row(
                   children: [
                     Expanded(
@@ -79,27 +77,26 @@ class DashboardBody extends ConsumerWidget {
                         header: true,
                         child: Text(
                           s.profilesSectionTitle,
-                          style: TextStyle(
-                            color: kTextPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: text.heading,
                         ),
                       ),
                     ),
                     Text(
                       '${profiles.length}',
-                      style: TextStyle(color: kTextSecondary, fontSize: 14),
+                      style: text.body.tone(colors.textSecondary),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                Gap.vMd,
               ],
             ),
           ),
           if (profiles.isEmpty)
             SliverPadding(
-              padding: EdgeInsets.symmetric(horizontal: gutter, vertical: 32),
+              padding: EdgeInsets.symmetric(
+                horizontal: gutter,
+                vertical: AppSpacing.xxxl,
+              ),
               sliver: const SliverToBoxAdapter(child: _EmptyState()),
             )
           else
@@ -107,7 +104,7 @@ class DashboardBody extends ConsumerWidget {
               padding: EdgeInsets.symmetric(horizontal: gutter),
               sliver: SliverList.separated(
                 itemCount: profiles.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => Gap.vMd,
                 itemBuilder: (context, index) {
                   final profile = profiles[index];
                   return ProfileCard(
@@ -121,8 +118,9 @@ class DashboardBody extends ConsumerWidget {
                 },
               ),
             ),
-          // Room for the floating "new profile" button.
-          const SliverToBoxAdapter(child: SizedBox(height: 104)),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: AppSizes.floatingButtonClearance),
+          ),
         ],
       ),
     );
@@ -134,24 +132,26 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final text = context.text;
     return Column(
       children: [
-        Icon(Icons.add_circle_outline_rounded, color: kBorder, size: 64),
-        const SizedBox(height: 16),
+        Icon(
+          Icons.add_circle_outline_rounded,
+          color: colors.border,
+          size: AppSizes.iconIllustration,
+        ),
+        Gap.vLg,
         Text(
           S.current.noProfilesYet,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: kTextSecondary,
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
+          style: text.subheading.tone(colors.textSecondary),
         ),
-        const SizedBox(height: 6),
+        Gap.vXs,
         Text(
           S.current.noProfilesTapPlus,
           textAlign: TextAlign.center,
-          style: TextStyle(color: kTextSecondary, fontSize: 13),
+          style: text.bodySmall.tone(colors.textSecondary),
         ),
       ],
     );

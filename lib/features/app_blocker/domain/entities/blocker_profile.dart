@@ -93,6 +93,19 @@ const Object _unset = Object();
 ///   • [taskModeEnabled] – blocked until all [tasks] are done for the day
 ///   • none enabled – "manual": blocked from activation until deactivation
 class BlockerProfile {
+  /// Longest name a profile can have.
+  static const maxNameLength = 40;
+
+  /// What a new rule starts with until the user changes it.
+  static const defaultScheduleStartHour = 9;
+  static const defaultScheduleEndHour = 17;
+  static const defaultUsageLimitMinutes = 30;
+
+  /// Upper bounds applied when reading stored data, so a corrupt value
+  /// cannot break the layout or overflow a counter.
+  static const maxAppCount = 999;
+  static const maxSavedMinutes = 999999;
+
   final String id;
   final String name;
   final int colorValue;
@@ -304,7 +317,10 @@ class BlockerProfile {
     scheduleEndHour: (j['scheduleEndHour'] as int?)?.clamp(0, 23),
     scheduleEndMinute: (j['scheduleEndMinute'] as int?)?.clamp(0, 59),
     usageLimitEnabled: j['usageLimitEnabled'] as bool? ?? false,
-    usageLimitMinutes: (j['usageLimitMinutes'] as int?)?.clamp(1, 1439),
+    usageLimitMinutes: (j['usageLimitMinutes'] as int?)?.clamp(
+      ShieldPolicy.minUsageLimitMinutes,
+      ShieldPolicy.maxUsageLimitMinutes,
+    ),
     taskModeEnabled: j['taskModeEnabled'] as bool? ?? false,
     tasks:
         (j['tasks'] as List<dynamic>?)
@@ -312,9 +328,12 @@ class BlockerProfile {
             .toList() ??
         [],
     hasAppsSelected: j['hasAppsSelected'] as bool? ?? false,
-    appCount: (j['appCount'] as int? ?? 0).clamp(0, 999),
+    appCount: (j['appCount'] as int? ?? 0).clamp(0, maxAppCount),
     tasksLastResetDate: j['tasksLastResetDate'] as String?,
     shieldActivatedAt: j['shieldActivatedAt'] as String?,
-    totalSavedMinutes: (j['totalSavedMinutes'] as int? ?? 0).clamp(0, 999999),
+    totalSavedMinutes: (j['totalSavedMinutes'] as int? ?? 0).clamp(
+      0,
+      maxSavedMinutes,
+    ),
   );
 }

@@ -9,6 +9,7 @@ import 'package:unspend/app.dart';
 import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
 import 'package:unspend/core/providers.dart';
+import 'package:unspend/core/storage_keys.dart';
 import 'package:unspend/core/time/day_key.dart';
 import 'package:unspend/features/app_blocker/data/datasources/fake_screen_time_datasource.dart';
 import 'package:unspend/features/app_blocker/data/datasources/method_channel_screen_time_datasource.dart';
@@ -143,16 +144,43 @@ class AppHarness {
     await tester.pumpAndSettle();
   }
 
+  /// The vertical scroll view in front: a sheet's if one is open, else the
+  /// screen's. Text fields contain small scrollables of their own, so the
+  /// largest one that can be touched is taken.
+  Finder get frontScrollable {
+    final candidates = find
+        .byWidgetPredicate(
+          (widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        )
+        .hitTestable();
+    Element? front;
+    var largest = 0.0;
+    for (final element in candidates.evaluate()) {
+      final size = element.size;
+      if (size != null && size.width * size.height > largest) {
+        largest = size.width * size.height;
+        front = element;
+      }
+    }
+    return find.byElementPredicate((element) => element == front);
+  }
+
   /// Taps the first match of [finder], scrolling it into view first: list
   /// items below the fold are not built (or not exposed to accessibility)
   /// until they are scrolled to, and the floating button covers the corner.
   Future<void> tap(Finder finder) async {
     for (var i = 0; i < 40 && finder.evaluate().isEmpty; i++) {
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -120));
+      final scrollable = frontScrollable;
+      if (scrollable.evaluate().isEmpty) break;
+      await tester.drag(scrollable, const Offset(0, -120), warnIfMissed: false);
       await tester.pump();
     }
     final target = finder.first;
-    await tester.ensureVisible(target);
+    // Centre it: a tap lands on the middle of a widget, and with very large
+    // text a card can be taller than what is visible of the page.
+    await Scrollable.ensureVisible(tester.element(target), alignment: 0.5);
     await tester.pumpAndSettle();
     await tester.tap(target);
     await tester.pumpAndSettle();
@@ -194,6 +222,9 @@ Future<AppHarness> pumpUnspend(
   Duration cooldown = const Duration(seconds: 3),
   String? pin,
   DateTime? now,
+  bool highContrast = false,
+  bool reduceMotion = false,
+  List<Override> overrides = const [],
 }) async {
   tester.view
     ..physicalSize = device.size
@@ -206,19 +237,22 @@ Future<AppHarness> pumpUnspend(
     );
   tester.platformDispatcher
     ..textScaleFactorTestValue = textScale
-    ..platformBrightnessTestValue = brightness;
+    ..platformBrightnessTestValue = brightness
+    ..accessibilityFeaturesTestValue = FakeAccessibilityFeatures(
+      highContrast: highContrast,
+      disableAnimations: reduceMotion,
+    );
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearAllTestValues);
 
   SharedPreferences.setMockInitialValues({
-    ProfilesRepository.schemaVersionKey:
-        ProfilesRepository.currentSchemaVersion,
+    PrefKeys.profilesSchemaVersion: ProfilesRepository.currentSchemaVersion,
     if (profiles.isNotEmpty)
-      ProfilesRepository.profilesKey: jsonEncode([
+      PrefKeys.profiles: jsonEncode([
         for (final profile in profiles) profile.toJson(),
       ]),
-    if (onboardingSeen) kHasSeenOnboardingKey: true,
-    if (mode != DeviceMode.personal) DeviceModeNotifier.storageKey: mode.name,
+    if (onboardingSeen) PrefKeys.onboardingSeen: true,
+    if (mode != DeviceMode.personal) PrefKeys.deviceMode: mode.name,
   });
   FlutterSecureStorage.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -247,6 +281,7 @@ Future<AppHarness> pumpUnspend(
       clockProvider.overrideWithValue(() => harness.now),
       cooldownDurationProvider.overrideWithValue(cooldown),
       screenTimeDatasourceProvider.overrideWithValue(screenTime),
+      ...overrides,
     ],
   );
   harness = AppHarness._(tester, container, screenTime, prefs);

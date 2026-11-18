@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/widgets/app_snackbar.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
 import '../data/datasources/screen_time_datasource.dart';
 import '../data/repositories/pin_repository.dart';
@@ -16,8 +16,11 @@ import 'widgets/pin_setup_dialog.dart';
 /// The actions on a profile that need a conversation with the user: a
 /// dialog first, a message when something goes wrong. Shared by the
 /// dashboard and the profile screen so both behave the same.
+///
+/// None of them throws: a refusal by Screen Time is explained in the user's
+/// language, anything unexpected ends in a plain "please try again".
 
-/// What to tell the user when the OS refuses an action.
+/// What to tell the user when the OS refuses an action. Never a code.
 String screenTimeErrorMessage(S s, ScreenTimeException exception) =>
     switch (exception.error) {
       ScreenTimeError.notAuthorized => s.errorNotAuthorized,
@@ -48,6 +51,7 @@ void _showError(
   WidgetRef ref,
   ScreenTimeException exception,
 ) {
+  AppHaptics.reject();
   final authorization = ref.read(authorizationProvider.notifier);
   final notAuthorized = exception.error == ScreenTimeError.notAuthorized;
   // Access may have been withdrawn in Settings since the last check.
@@ -70,21 +74,21 @@ Future<void> activateWithFeedback(
   BuildContext context,
   WidgetRef ref,
   BlockerProfile profile,
-) async {
+) => runGuarded(context, () async {
   try {
     await ref.read(profilesProvider.notifier).activateProfile(profile.id);
-    HapticFeedback.mediumImpact();
+    AppHaptics.confirm();
   } on ScreenTimeException catch (e) {
     if (context.mounted) _showError(context, ref, e);
   }
-}
+});
 
 /// Deactivates a profile after the cooldown and the PIN.
 Future<void> deactivateWithGate(
   BuildContext context,
   WidgetRef ref,
   String profileId,
-) async {
+) => runGuarded(context, () async {
   final passed = await showPinGate(
     context,
     purpose: PinGatePurpose.deactivate,
@@ -93,12 +97,14 @@ Future<void> deactivateWithGate(
   if (!passed) return;
   try {
     await ref.read(profilesProvider.notifier).deactivateProfile(profileId);
+    AppHaptics.confirm();
   } on ScreenTimeException {
+    AppHaptics.reject();
     if (context.mounted) {
       showAppSnackBar(context, S.current.deactivationFailed);
     }
   }
-}
+});
 
 /// Opens the app picker for [profile]. The first time apps are chosen the
 /// user is invited to have a PIN set.
@@ -106,7 +112,7 @@ Future<void> pickAppsWithFeedback(
   BuildContext context,
   WidgetRef ref,
   BlockerProfile profile,
-) async {
+) => runGuarded(context, () async {
   final bool changed;
   try {
     changed = await ref
@@ -120,4 +126,4 @@ Future<void> pickAppsWithFeedback(
   if (await ref.read(pinRepositoryProvider).hasPin()) return;
   if (!context.mounted) return;
   await showPinSetupDialog(context, cancelLabel: S.current.notNow);
-}
+});

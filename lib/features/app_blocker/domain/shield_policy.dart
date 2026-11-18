@@ -11,6 +11,10 @@ class ShieldPolicy {
   /// DeviceActivity rejects monitoring intervals shorter than this.
   static const minScheduleMinutes = 15;
 
+  /// A daily usage limit is at least a minute and less than a whole day.
+  static const minUsageLimitMinutes = 1;
+  static const maxUsageLimitMinutes = minutesPerDay - 1;
+
   /// Whether [minuteOfDay] (0–1439) falls inside the half-open window
   /// `[startMinute, endMinute)`. Windows that cross midnight (22:00–06:00)
   /// are supported; an empty window (start == end) contains nothing.

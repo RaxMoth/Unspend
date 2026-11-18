@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 2026-11-18 — Design system and robustness
+
+No change in what the app does; a change in how it is built and how it
+behaves when something goes wrong.
+
+#### Added
+- **Design system** (`docs/DESIGN_SYSTEM.md`). Colours are a `ThemeExtension`
+  with four palettes (light, dark, and an increased-contrast variant of each);
+  type scale, spacing, radii, sizes, motion and haptics are tokens in
+  `lib/core/theme/`. Shared components in `lib/core/widgets/` (`AppCard`,
+  `IconBadge`, `AppButton`, `AppChip`, `AppDialog`, `Reveal`, …) replace
+  per-screen copies.
+- Follows the system's **Increase Contrast** (stronger outlines and text,
+  AAA contrast for coloured text) and **Reduce Motion** settings.
+- System text size is followed up to **2×** (was 1.6×).
+- Rule settings slide in and out instead of jumping; buttons show progress
+  while working; haptics have one meaning each.
+- `lib/main_dev.dart --dart-define=DEMO=true` starts with sample profiles.
+- One registry for stored keys (`storage_keys.dart`) and one for the native
+  bridge's names (`screen_time_contract.dart`, `ChannelContract.swift`).
+
+#### Fixed
+- A double tap could open two unlock dialogs or two sheets.
+- If the Keychain could not be read, the unlock dialog stayed on a spinner
+  forever; it now says so and offers to retry (and never treats that as
+  "no PIN").
+- An unexpected error while activating left the button disabled; unexpected
+  errors in any user-started action now end in a plain message.
+- With Reduce Motion, expanding a rule's settings would have tripped a layout
+  assertion.
+- A malformed reply from the native side can no longer crash the Dart side.
+- The daily-limit keypad overflowed at the largest text size on small phones.
+
+#### Changed
+- Stricter static analysis (no implicit `dynamic`, no dropped futures).
+- 443 Dart tests (was 357).
+
+#### Removed
+- Global colour getters and the brightness-sync workaround that kept them
+  current; ~100 inline text styles and ~250 literal sizes and colours.
+
+
 ### 2026-11-17 — Production hardening
 
 Blocking is now decided by one rule, enforced by iOS, and covered by tests.

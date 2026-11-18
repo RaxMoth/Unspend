@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unspend/core/providers.dart';
+import 'package:unspend/core/storage_keys.dart';
 import 'package:unspend/features/app_blocker/data/datasources/fake_screen_time_datasource.dart';
 import 'package:unspend/features/app_blocker/data/datasources/method_channel_screen_time_datasource.dart';
 import 'package:unspend/features/app_blocker/data/datasources/screen_time_datasource.dart';
@@ -54,14 +55,14 @@ void main() {
     test('is remembered', () async {
       await start();
       await container.read(deviceModeProvider.notifier).set(DeviceMode.child);
-      expect(prefs.getString(DeviceModeNotifier.storageKey), 'child');
+      expect(prefs.getString(PrefKeys.deviceMode), 'child');
 
-      await start(stored: {DeviceModeNotifier.storageKey: 'child'});
+      await start(stored: {PrefKeys.deviceMode: 'child'});
       expect(container.read(deviceModeProvider), DeviceMode.child);
     });
 
     test('an unreadable stored value falls back to "my phone"', () async {
-      await start(stored: {DeviceModeNotifier.storageKey: 'teenager'});
+      await start(stored: {PrefKeys.deviceMode: 'teenager'});
 
       expect(container.read(deviceModeProvider), DeviceMode.personal);
     });
@@ -87,9 +88,7 @@ void main() {
     });
 
     test('asks for a parent\'s approval in child mode', () async {
-      final auth = await start(
-        stored: {DeviceModeNotifier.storageKey: 'child'},
-      );
+      final auth = await start(stored: {PrefKeys.deviceMode: 'child'});
 
       final result = await auth.request();
 
@@ -114,9 +113,7 @@ void main() {
       ScreenTimeError.network,
     ]) {
       test('${reason.name} is passed on as the reason', () async {
-        final auth = await start(
-          stored: {DeviceModeNotifier.storageKey: 'child'},
-        );
+        final auth = await start(stored: {PrefKeys.deviceMode: 'child'});
         screenTime.failNext = ScreenTimeException(reason);
 
         final result = await auth.request();
@@ -129,7 +126,7 @@ void main() {
 
     test('child mode on a phone that is not a child\'s is refused', () async {
       final auth = await start(
-        stored: {DeviceModeNotifier.storageKey: 'child'},
+        stored: {PrefKeys.deviceMode: 'child'},
         isChildAccount: false,
       );
 

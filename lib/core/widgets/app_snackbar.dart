@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/design_tokens.dart';
-
 /// Shows a short message at the bottom of the screen, replacing any message
-/// that is still visible.
+/// that is still visible. Its look comes from the theme.
 void showAppSnackBar(
   BuildContext context,
   String message, {
@@ -13,16 +11,5 @@ void showAppSnackBar(
   if (messenger == null) return;
   messenger
     ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message, style: TextStyle(color: kTextPrimary)),
-        backgroundColor: kSurface,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: kBorder),
-        ),
-        action: action,
-      ),
-    );
+    ..showSnackBar(SnackBar(content: Text(message), action: action));
 }

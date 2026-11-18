@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 
 import '../providers/device_mode_provider.dart';
 
@@ -29,7 +30,7 @@ class DeviceModeOptions extends StatelessWidget {
           selected: selected == DeviceMode.personal,
           onTap: () => onSelected(DeviceMode.personal),
         ),
-        const SizedBox(height: 12),
+        Gap.vMd,
         _OptionCard(
           icon: Icons.child_care_rounded,
           title: s.modeChildTitle,
@@ -59,6 +60,9 @@ class _OptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final text = context.text;
+    final iconColor = selected ? colors.accent : colors.textSecondary;
     return Semantics(
       container: true,
       button: true,
@@ -67,60 +71,34 @@ class _OptionCard extends StatelessWidget {
       label: '$title. $body',
       excludeSemantics: true,
       onTap: onTap,
-      child: Material(
-        color: selected ? kAccent.withValues(alpha: 0.08) : kSurface,
-        borderRadius: BorderRadius.circular(kRadius),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(kRadius),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 56),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(kRadius),
-              border: Border.all(
-                color: selected ? kAccent : kBorder,
-                width: selected ? 1.5 : 1,
+      child: AppCard(
+        tint: selected ? colors.accent : null,
+        outline: selected ? colors.accent : null,
+        emphasized: selected,
+        onTap: onTap,
+        excludeTapFromSemantics: true,
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor),
+            Gap.hMd,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: text.label),
+                  Gap.vXxs,
+                  Text(body, style: text.bodySmall.tone(colors.textSecondary)),
+                ],
               ),
             ),
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 24,
-                  color: selected ? kAccent : kTextSecondary,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: kTextPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        body,
-                        style: TextStyle(color: kTextSecondary, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  selected
-                      ? Icons.radio_button_checked_rounded
-                      : Icons.radio_button_off_rounded,
-                  color: selected ? kAccent : kTextSecondary,
-                ),
-              ],
+            Gap.hSm,
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+              color: iconColor,
             ),
-          ),
+          ],
         ),
       ),
     );

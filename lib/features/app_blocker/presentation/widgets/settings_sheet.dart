@@ -4,10 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unspend/config/router.dart';
 import 'package:unspend/core/constants/strings.dart';
-import 'package:unspend/core/theme/design_tokens.dart';
-import 'package:unspend/core/widgets/app_sheet.dart';
-import 'package:unspend/core/widgets/app_snackbar.dart';
-import 'package:unspend/core/widgets/app_switch.dart';
+import 'package:unspend/core/theme/theme.dart';
+import 'package:unspend/core/widgets/widgets.dart';
 import 'package:unspend/shared/providers/locale_provider.dart';
 import 'package:unspend/shared/providers/theme_mode_provider.dart';
 
@@ -67,10 +65,10 @@ class _SettingsList extends ConsumerWidget {
         )
         .name;
 
-    /// Closes the sheet, then runs [next] from the screen behind it.
-    void then(void Function() next) {
+    /// Closes the sheet, then continues from the screen behind it.
+    void then(Future<void> Function() next) {
       Navigator.of(context).pop();
-      next();
+      runGuarded(host, next);
     }
 
     return Column(
@@ -142,6 +140,7 @@ class _SettingsList extends ConsumerWidget {
   }
 }
 
+/// One entry of the settings list.
 class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
     required this.icon,
@@ -161,29 +160,25 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final warning = destructive ? context.colors.accentText : null;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: ListTile(
-        leading: Icon(icon, color: destructive ? kAccent : kTextSecondary),
-        title: Text(
-          title,
-          style: TextStyle(color: destructive ? kAccentText : kTextPrimary),
-        ),
+        leading: Icon(icon, color: warning),
+        title: Text(title),
+        textColor: warning,
         subtitle: Text(
           subtitle,
-          style: TextStyle(color: kTextSecondary, fontSize: 12),
+          style: context.text.caption.tone(context.colors.textSecondary),
         ),
-        trailing: showChevron
-            ? Icon(Icons.chevron_right_rounded, color: kTextSecondary)
-            : null,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        tileColor: kBg,
+        trailing: showChevron ? const Icon(Icons.chevron_right_rounded) : null,
         onTap: onTap,
       ),
     );
   }
 }
 
+/// One option of a single-choice list.
 class _ChoiceTile extends StatelessWidget {
   const _ChoiceTile({
     required this.label,
@@ -199,23 +194,27 @@ class _ChoiceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? kAccent : kTextSecondary;
+    final colors = context.colors;
+    final color = selected ? colors.accent : colors.textSecondary;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: ListTile(
         selected: selected,
+        selectedColor: colors.textPrimary,
         leading: Icon(
           selected
               ? Icons.radio_button_checked_rounded
               : Icons.radio_button_off_rounded,
           color: color,
         ),
-        title: Text(label, style: TextStyle(color: kTextPrimary)),
-        trailing: icon == null ? null : Icon(icon, color: color, size: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        tileColor: kBg,
-        selectedTileColor: kBg,
-        onTap: onTap,
+        title: Text(label),
+        trailing: icon == null
+            ? null
+            : Icon(icon, color: color, size: AppSizes.iconMd),
+        onTap: () {
+          AppHaptics.selection();
+          onTap();
+        },
       ),
     );
   }
@@ -254,38 +253,14 @@ Future<void> _changePin(BuildContext host) async {
 /// it goes through the same cooldown and PIN as deactivating.
 Future<void> _deleteAllData(BuildContext host) async {
   final container = ProviderScope.containerOf(host, listen: false);
-  final confirmed = await showDialog<bool>(
-    context: host,
-    builder: (dialogContext) => AlertDialog(
-      scrollable: true,
-      backgroundColor: kSurface,
-      title: Text(
-        S.current.deleteAllData,
-        style: TextStyle(color: kAccentText, fontSize: 18),
-      ),
-      content: Text(
-        S.current.deleteAllDataWarning,
-        style: TextStyle(color: kTextSecondary, fontSize: 13),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: Text(
-            S.current.cancel,
-            style: TextStyle(color: kTextSecondary),
-          ),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text(
-            S.current.deleteAllDataConfirm,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ),
-      ],
-    ),
+  final confirmed = await showConfirmDialog(
+    host,
+    title: S.current.deleteAllData,
+    message: S.current.deleteAllDataWarning,
+    confirmLabel: S.current.deleteAllDataConfirm,
+    destructive: true,
   );
-  if (confirmed != true || !host.mounted) return;
+  if (!confirmed || !host.mounted) return;
 
   if (_anyProfileActive(container)) {
     final passed = await showPinGate(
@@ -302,36 +277,34 @@ Future<void> _deleteAllData(BuildContext host) async {
   if (host.mounted) host.go(AppRoutes.dashboard);
 }
 
-void _showDeviceMode(BuildContext host) {
-  showAppSheet<void>(
-    context: host,
-    title: S.current.whoUsesLabel,
-    builder: (sheetContext) => Consumer(
-      builder: (context, ref, _) {
-        final current = ref.watch(deviceModeProvider);
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              S.current.whoUsesChangeInfo,
-              style: TextStyle(color: kTextSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            DeviceModeOptions(
-              selected: current,
-              onSelected: (chosen) {
-                if (chosen == current) return;
-                Navigator.of(sheetContext).pop();
-                _changeDeviceMode(host, chosen);
-              },
-            ),
-          ],
-        );
-      },
-    ),
-  );
-}
+Future<void> _showDeviceMode(BuildContext host) => showAppSheet<void>(
+  context: host,
+  title: S.current.whoUsesLabel,
+  builder: (sheetContext) => Consumer(
+    builder: (context, ref, _) {
+      final current = ref.watch(deviceModeProvider);
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            S.current.whoUsesChangeInfo,
+            style: context.text.bodySmall.tone(context.colors.textSecondary),
+          ),
+          Gap.vLg,
+          DeviceModeOptions(
+            selected: current,
+            onSelected: (chosen) {
+              if (chosen == current) return;
+              Navigator.of(sheetContext).pop();
+              runGuarded(host, () => _changeDeviceMode(host, chosen));
+            },
+          ),
+        ],
+      );
+    },
+  ),
+);
 
 /// "My phone" and "my child's phone" use different kinds of Screen Time
 /// access, so switching gives the current access back and asks again. iOS
@@ -372,52 +345,55 @@ Future<void> _changeDeviceMode(BuildContext host, DeviceMode mode) async {
   );
 }
 
-void _showUninstallProtection(BuildContext host) {
-  showAppSheet<void>(
-    context: host,
-    title: S.current.uninstallProtection,
-    builder: (_) => Consumer(
-      builder: (context, ref, _) {
-        final enabled = ref.watch(uninstallProtectionProvider);
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              S.current.uninstallProtectionBody,
-              style: TextStyle(color: kTextSecondary, fontSize: 13),
+Future<void> _showUninstallProtection(BuildContext host) => showAppSheet<void>(
+  context: host,
+  title: S.current.uninstallProtection,
+  builder: (_) => Consumer(
+    builder: (context, ref, _) {
+      final enabled = ref.watch(uninstallProtectionProvider);
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            S.current.uninstallProtectionBody,
+            style: context.text.bodySmall.tone(context.colors.textSecondary),
+          ),
+          Gap.vLg,
+          AppCard(
+            inset: true,
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.xs,
+              AppSpacing.sm,
+              AppSpacing.xs,
             ),
-            const SizedBox(height: 16),
-            Container(
-              decoration: BoxDecoration(
-                color: kBg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ExcludeSemantics(
-                      child: Text(
-                        enabled ? S.current.stateOn : S.current.stateOff,
-                        style: TextStyle(color: kTextPrimary, fontSize: 16),
-                      ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ExcludeSemantics(
+                    child: Text(
+                      enabled ? S.current.stateOn : S.current.stateOff,
+                      style: context.text.bodyLarge,
                     ),
                   ),
-                  AppSwitch(
-                    value: enabled,
-                    semanticLabel: S.current.uninstallProtection,
-                    onChanged: (on) => _setUninstallProtection(context, on),
+                ),
+                AppSwitch(
+                  value: enabled,
+                  semanticLabel: S.current.uninstallProtection,
+                  onChanged: (on) => runGuarded(
+                    context,
+                    () => _setUninstallProtection(context, on),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        );
-      },
-    ),
-  );
-}
+          ),
+        ],
+      );
+    },
+  ),
+);
 
 /// Switching the protection on is always allowed. Switching it off weakens
 /// a block, so it takes the PIN if one is set and, while a profile is
@@ -436,6 +412,7 @@ Future<void> _setUninstallProtection(BuildContext context, bool enable) async {
       if (!passed) return;
     }
   }
+  AppHaptics.selection();
   final changed = await container
       .read(uninstallProtectionProvider.notifier)
       .set(enable);
@@ -444,66 +421,60 @@ Future<void> _setUninstallProtection(BuildContext context, bool enable) async {
   }
 }
 
-void _showThemePicker(BuildContext host) {
-  showAppSheet<void>(
-    context: host,
-    title: S.current.themeLabel,
-    builder: (sheetContext) => Consumer(
-      builder: (context, ref, _) {
-        final current = ref.watch(themeModeProvider);
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final mode in ThemeMode.values)
-              _ChoiceTile(
-                label: _themeName(mode),
-                icon: _themeIcon(mode),
-                selected: mode == current,
-                onTap: () {
-                  ref.read(themeModeProvider.notifier).setMode(mode);
-                  Navigator.of(sheetContext).pop();
-                },
-              ),
-          ],
-        );
-      },
-    ),
-  );
-}
+Future<void> _showThemePicker(BuildContext host) => showAppSheet<void>(
+  context: host,
+  title: S.current.themeLabel,
+  builder: (sheetContext) => Consumer(
+    builder: (context, ref, _) {
+      final current = ref.watch(themeModeProvider);
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final mode in ThemeMode.values)
+            _ChoiceTile(
+              label: _themeName(mode),
+              icon: _themeIcon(mode),
+              selected: mode == current,
+              onTap: () {
+                ref.read(themeModeProvider.notifier).setMode(mode);
+                Navigator.of(sheetContext).pop();
+              },
+            ),
+        ],
+      );
+    },
+  ),
+);
 
-void _showLanguagePicker(BuildContext host) {
-  showAppSheet<void>(
-    context: host,
-    title: S.current.languageLabel,
-    builder: (sheetContext) => Consumer(
-      builder: (context, ref, _) {
-        final current = ref.watch(localeProvider);
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final language in _languages)
-              _ChoiceTile(
-                label: language.name,
-                selected: language.code == current,
-                onTap: () {
-                  ref.read(localeProvider.notifier).setLocale(language.code);
-                  Navigator.of(sheetContext).pop();
-                },
-              ),
-          ],
-        );
-      },
-    ),
-  );
-}
+Future<void> _showLanguagePicker(BuildContext host) => showAppSheet<void>(
+  context: host,
+  title: S.current.languageLabel,
+  builder: (sheetContext) => Consumer(
+    builder: (context, ref, _) {
+      final current = ref.watch(localeProvider);
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final language in _languages)
+            _ChoiceTile(
+              label: language.name,
+              selected: language.code == current,
+              onTap: () {
+                ref.read(localeProvider.notifier).setLocale(language.code);
+                Navigator.of(sheetContext).pop();
+              },
+            ),
+        ],
+      );
+    },
+  ),
+);
 
-void _showPrivacyPolicy(BuildContext host) {
-  showAppSheet<void>(
-    context: host,
-    title: S.current.privacyPolicyTitle,
-    builder: (_) => Text(
-      S.current.privacyPolicyBody,
-      style: TextStyle(color: kTextSecondary, fontSize: 14, height: 1.6),
-    ),
-  );
-}
+Future<void> _showPrivacyPolicy(BuildContext host) => showAppSheet<void>(
+  context: host,
+  title: S.current.privacyPolicyTitle,
+  builder: (context) => Text(
+    S.current.privacyPolicyBody,
+    style: context.text.body.relaxed.tone(context.colors.textSecondary),
+  ),
+);
